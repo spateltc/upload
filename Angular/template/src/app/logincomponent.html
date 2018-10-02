@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+  <meta charset="UTF-8">
+  <title>shashank - Random Login Form</title>
+<style>
+@import url(http://fonts.googleapis.com/css?family=Exo:100,200,400);
+@import url(http://fonts.googleapis.com/css?family=Source+Sans+Pro:700,400,300);
+</style>
+    <script src="js/prefixfree.min.js"></script>
+</head>
+
+<body>
+  <div class="body"></div>
+		<div class="grad"></div>
+		<div class="header">
+			<div>Ghost<span>Rider</span></div>
+		</div>
+		<br>
+		<div class="login">
+				<input type="text" placeholder="username" name="user"><br>
+				<input type="password" placeholder="password" name="password"><br>
+			<a routerLink="/map" routerLinkActive="active" class="btn btn-info btn-lg">
+          <input type="button" value="Login">
+        </a>
+        <!--   <a routerLink="/" routerLinkActive="active" class="btn btn-info btn-lg">
+         <input type="button" value="SignUp"> </a>	 -->
+		</div>
+</body>
+
+</html>
+<router-outlet></router-outlet>

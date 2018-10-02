@@ -1,0 +1,455 @@
+// src/app/auth/auth.service.ts
+import { Injectable } from '@angular/core';
+import { JwtHelperService } from '@auth0/angular-jwt';
+@Injectable()
+export class AuthService {
+  constructor(public jwtHelper: JwtHelperService) {}
+  // ...
+  public isAuthenticated(): boolean {
+    const token = localStorage.getItem('token');
+    // Check whether the token is expired and return
+    // true or false
+    return !this.jwtHelper.isTokenExpired(token);
+  }
+}
+
+
+---------------------------------------------------------------------------------
+
+// src/app/auth/auth-guard.service.ts
+import { Injectable } from '@angular/core';
+import { Router, CanActivate } from '@angular/router';
+import { AuthService } from './auth.service';
+@Injectable()
+export class AuthGuardService implements CanActivate {
+  constructor(public auth: AuthService, public router: Router) {}
+  canActivate(): boolean {
+    if (!this.auth.isAuthenticated()) {
+      this.router.navigate(['login']);
+      return false;
+    }
+    return true;
+  }
+}
+
+----------------------------------------------------------------------------------
+
+// src/app/app.routes.ts
+import { Routes, CanActivate } from '@angular/router';
+import { ProfileComponent } from './profile/profile.component';
+import { 
+  AuthGuardService as AuthGuard 
+} from './auth/auth-guard.service';
+export const ROUTES: Routes = [
+  { path: '', component: HomeComponent },
+  { 
+    path: 'profile',
+    component: ProfileComponent,
+    canActivate: [AuthGuard] 
+  },
+  { path: '**', redirectTo: '' }
+];
+
+----------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { Subject } from 'rxjs/Subject';
+ 
+@Injectable()
+export class MessageService {
+    private subject = new Subject<any>();
+ 
+    sendMessage(message: string) {
+        this.subject.next({ text: message });
+    }
+ 
+    clearMessage() {
+        this.subject.next();
+    }
+ 
+    getMessage(): Observable<any> {
+        return this.subject.asObservable();
+    }
+}
+----------------------------------------------------------------------------------
+
+
+import { Component, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs/Subscription';
+ 
+import { MessageService } from './_services/index';
+ 
+@Component({
+    moduleId: module.id,
+    selector: 'app',
+    templateUrl: 'app.component.html'
+})
+ 
+export class AppComponent implements OnDestroy {
+    message: any;
+    subscription: Subscription;
+ 
+    constructor(private messageService: MessageService) {
+        // subscribe to home component messages
+        this.subscription = this.messageService.getMessage().subscribe(message => { this.message = message; });
+    }
+ 
+    ngOnDestroy() {
+        // unsubscribe to ensure no memory leaks
+        this.subscription.unsubscribe();
+    }
+}
+
+----------------------------------------------------------------------------------
+
+
+import { Component } from '@angular/core';
+ 
+import { MessageService } from '../_services/index';
+ 
+@Component({
+    moduleId: module.id,
+    templateUrl: 'home.component.html'
+})
+ 
+export class HomeComponent {
+    constructor(private messageService: MessageService) {}
+     
+    sendMessage(): void {
+        // send message to subscribers via observable subject
+        this.messageService.sendMessage('Message from Home Component to App Component!');
+    }
+ 
+    clearMessage(): void {
+        // clear message
+        this.messageService.clearMessage();
+    }
+}
+
+----------------------------------------------------------------------------------
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃         Observable                  ┃     BehaviorSubject/Subject         ┃      
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫ 
+│ Is just a function, no state        │ Has state. Stores data in memory    │
+├─────────────────────────────────────┼─────────────────────────────────────┤
+│ Code run for each observer          │ Same code run                       │
+│                                     │ only once for all observers         │
+├─────────────────────────────────────┼─────────────────────────────────────┤
+│ Creates only Observable             │Can create and also listen Observable│
+│ ( data producer alone )             │ ( data producer and consumer )      │
+├─────────────────────────────────────┼─────────────────────────────────────┤
+│ Usage: Simple Observable with only  │ Usage:                              │
+│ one Obeserver.                      │ * Store data and modify frequently  │
+│                                     │ * Multiple observers listen to data │
+│                                     │ * Proxy between Observable  and     │
+│                                     │   Observer                          │
+└─────────────────────────────────────┴─────────────────────────────────────┘
+
+
+
+----------------------------------------------------------------------------------
+
+
+.do() is to execute code for each event. A difference to .map() is, that the return value of .do() is ignored and doesn't change what value the subscriber receives.
+
+
+
+-----------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
+
+
+/** This assumes you have @angular/cli installed **/
+
+/** creating our Angular application **/
+
+ng new fancy-app --routing
+
+
+
+
+
+/** Creating our HomeComponent **/
+
+ng generate component HomeComponent --spec=false
+
+/** Creating our BigFeatureComponent **//
+
+ng generate component BigFeatureComponent --spec=false
+
+
+
+
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { HomeComponentComponent } from './home-component/home-component.component';
+import { BigFeatureComponentComponent } from './big-feature-component/big-feature-component.component';
+
+// New code 
+const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'home'},
+  { path: 'home', component: HomeComponentComponent},
+  { path: 'bigComponent', component: BigFeatureComponentComponent}
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule { }
+
+
+
+
+
+
+
+<a routerLink='/home'>Home</a>
+<a routerLink='/bigComponent'>Feature</a>
+<h1>
+  Home Component
+</h1>
+<p>
+  Home component will be the first screen when the user visits our page.
+</p>
+
+
+
+
+
+
+<a routerLink='/home'>Home</a>
+<a routerLink='/bigComponent'>Feature</a>
+<h1>
+  Big Feature here.
+</h1>
+<p>
+  Here is where the big feature of our fancy app will reside. 
+</p>
+
+
+
+
+
+import { BrowserModule } from '@angular/platform-browser';
+import { NgModule } from '@angular/core';
+
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
+import { HomeComponentComponent } from './home-component/home-component.component';
+import { BigFeatureComponentComponent } from './big-feature-component/big-feature-component.component';
+
+@NgModule({
+  declarations: [
+    AppComponent,
+    HomeComponentComponent,
+    BigFeatureComponentComponent
+  ],
+  imports: [
+    BrowserModule,
+    AppRoutingModule
+  ],
+  providers: [],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+
+normal flow 
+-----------------------------------------------------
+Lazy flow 
+---------
+
+
+
+//Generate a new module, the one that will be lazy loaded
+
+ng generate module big-module --routing
+
+
+
+
+
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { HomeComponentComponent } from './home-component/home-component.component';
+
+const routes: Routes = [
+  { path: '', pathMatch: 'full', redirectTo: 'home'},
+  { path: 'home', component: HomeComponentComponent},
+  { path: 'bigComponent', loadChildren: './big-module/big-module.module#BigModuleModule'}   // Code modified
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule { }
+
+
+
+
+
+
+
+import { NgModule } from '@angular/core';
+import { Routes, RouterModule } from '@angular/router';
+import { BigFeatureComponentComponent } from './big-feature-component/big-feature-component.component';
+
+const routes: Routes = [
+  { path: '', component: BigFeatureComponentComponent}
+];
+
+@NgModule({
+  imports: [RouterModule.forChild(routes)],
+  exports: [RouterModule]
+})
+export class BigModuleRoutingModule { }
+
+--------------------------------------------------------------------------------------------------------------------
+
+query params 
+---------------
+
+ this.sub = this.route
+      .queryParams
+      .subscribe(queryParams => {
+        this.locParam = queryParams['locParam'];
+        console.log('sashank location',this.locParam);
+      });
+	  
+	  
+	    this.ngZone.run(() =>  this.router.navigate(['/table'], { queryParams: { locParam: loca[i].location,reportNa:'shashank' } }));
+	  
+	  goProducts() {
+  this.router.navigate(['/products'], { queryParams: { order: 'popular', 'price-range': 'not-cheap' } });
+  
+}
+
+
+
+  checkQueryParams() {
+    this.route.queryParams.subscribe(params => {
+        console.log(params);
+        if (params.quoteNo && params.postalCode) {
+          this.retrieveSubmission(params.quoteNo, params.postalCode);
+        }
+      });
+  }
+
+
+--------------------------------------------------------------------------------------------------------------------
+Simple Directive 
+----------------
+
+import { Directive, ElementRef, HostListener, Input } from '@angular/core';
+
+@Directive({
+  selector: '[appOnlyNumber]'
+})
+export class OnlyNumberDirective {
+
+  constructor(private el: ElementRef) { }
+
+  @Input() OnlyNumber: boolean;
+
+  @HostListener('keydown', ['$event']) onKeyDown(event: KeyboardEvent | MouseEvent) {
+    const e = <KeyboardEvent>event;
+      const ch = (e.key);
+      const regEx =  new RegExp(/^[0-9-]$/);
+      if (ch.match(regEx) || [46, 8, 9, 27, 13].indexOf(e.keyCode) !== -1) {
+        return;
+      } else {
+        e.preventDefault();
+      }
+  }
+
+}
+
+--------------------------------------------------------------------------------------------------------------------
+
+
+  this.searchByParam = this.route.snapshot.params['searchby'];
+      this.searchValParam = this.route.snapshot.params['id'];
+	  
+	  
+      if (this.searchByParam === 'accountnumber') {
+        this.searchBasedOn.accountNumber = this.searchValParam;
+        this.getSearchResults(
+          'getDashboardSubmissionSummariesForAccount_GO',
+          'gateway/submission',
+          'submissions'
+        );
+      } else if (this.searchByParam === 'quotenumber') {
+        this.searchBasedOn.QuoteNumber = this.searchValParam;
+        this.getSearchResults(
+          'getSubmissionSummary_GO',
+          'gateway/submission',
+          'submissions'
+        );
+      } else if (this.searchByParam === 'businessname') {
+	  
+	  
+        const searchParamArray = this.searchValParam.split('~');
+		
+		
+        this.searchBasedOn.accountNumber = '';
+        (this.searchBasedOn.businessName = searchParamArray[0]),
+          (this.searchBasedOn.state = searchParamArray[1]),
+          (this.searchBasedOn.zipCode = searchParamArray[2]);
+
+        this.getSearchResults(
+          'findAccountsForDashboardSearch_GO',
+          'gateway/account',
+          'accounts'
+        );
+      } else {
+        this.router.navigate(['search']);
+      }
+    });
+  }
+
+
+--------------------------------------------------------------------------------------------------------------------
+
+
+search(searchType: string) {
+    if (searchType === 'businessSearch') {
+      if (this.searchForm.get('searchByBusinessName').valid) {
+        const businessName = this.searchForm.get('searchByBusinessName').get('businessNameTxt').value
+          + '~' + this.searchForm.get('searchByBusinessName').get('stateSel').value
+          + '~' + this.searchForm.get('searchByBusinessName').get('zipTxt').value;
+        this.router.navigate(['dashboard', 'businessname', businessName]);
+      }
+    }
+
+    if (searchType === 'accountSearch') {
+      if (this.searchForm.get('searchByAccountNumber').valid) {
+        this.router.navigate(['dashboard', 'accountnumber', this.searchForm.get('searchByAccountNumber').get('accountNumberTxt').value]);
+      }
+    }
+
+    if (searchType === 'quoteSearch') {
+      if (this.searchForm.get('searchByQuoteNumber').valid) {
+        this.router.navigate(['dashboard', 'quotenumber', this.searchForm.get('searchByQuoteNumber').get('quoteNumberTxt').value]);
+      }
+    }
+	
+	
+	url = this.getBaseURLDetails(true) + 'bop/submission/' + routingUrl + '?quoteNo=' + quoteNumber + '&postalCode=' + postalCode;
+	
+	-------------------------------------------------------------------------------------------------------------------
+
+  quoteID: sessionStorage.getItem('activeLocation')
+  
+  sessionStorage.setItem('activeLocation', '' + this.commonDataService.activeLocation);
+  
+  -------------------------------------------------------------------------------------------------------------------

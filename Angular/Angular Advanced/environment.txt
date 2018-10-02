@@ -1,0 +1,21 @@
+// The file contents for the current environment will overwrite these during build.
+// The build system defaults to the dev environment which uses `environment.ts`, but if you do
+// `ng build --env=prod` then `environment.prod.ts` will be used instead.
+// The list of which env maps to which file can be found in `.angular-cli.json`.
+
+export const environment = {
+  production: false,
+  edgeURL: 'http://dnsclpas02t/pc/service/edge/',
+  mulesMetaURL: 'http://dmmule01t:9080/guidehome/v1/',
+  muleEdgeWrapper: 'http://dmmule01t:9080/guidehome/v1/',
+  mulesURL: 'http://dmmule01t:8087/',
+  mockUrl: 'http://demo8417899.mockable.io/',
+
+  devMuleURL: 'https://ot1.guidehome.com/md/engageportalservices/v1/',
+  qaMuleURL: 'https://ot1.guidehome.com/mt/engageportalservices/v1/',
+  prodMuleURL: 'https://ot1.guidehome.com/mp/engageportalservices/v1/',
+  uatMuleURL: 'https://ot1.guidehome.com/mq/engageportalservices/v1/'
+};
+
+
+

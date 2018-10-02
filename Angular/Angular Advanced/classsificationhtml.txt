@@ -1,0 +1,50 @@
+<form [formGroup]="building">
+  <div formArrayName="classificationsPageForm" *ngFor="let classification of getclassificationsPageForm(buildingIndex); let classificationIndex=index">
+    <div [formGroupName]="classificationIndex">
+      <app-accordion [disabled]="false" [isOpen]="true" [isModified]="false" [isDelete]="true" (triggerCorrectAddress)='deleteClassification(classificationIndex,buildingIndex, select.value)'
+        title="Classification {{classificationIndex+1}}">
+
+
+        <div class="form-select col-left-padding col-md-12 col-lg-12 col-sm-12">
+          <div class="form-group">
+            <label attr.for="{{'classcode'+classificationIndex}}" class="optional-field">
+              <span>Classification Description</span>
+            </label>
+            <select class="form-control" #select (blur)="change()" (change)="basicClassificationDataChanged(buildingIndex,classificationIndex)" formControlName="classcode" id="{{ 'classcode'+classificationIndex }}">
+              <option selected value="">Select</option>
+                <option  *ngFor="let classification of getClassCodesList(buildingIndex, classificationIndex)" ngDefaultControl value={{classification.code}}>
+                  {{classification.classCodeBasisCode}}
+                </option>
+            </select>
+          </div>
+        </div>
+
+
+        <div class="form-input col-left-padding col-md-6">
+          <div class="form-group">
+            <label data-tooltip="This is the square footage of the occupant" attr.for="{{'squareFootage'+classificationIndex}}">
+              <span>Classification Square Footage</span>
+            </label>
+            <input type="text" appOnlyNumber="true" (blur)="change()" maxlength="10" id="{{'squareFootage'+classificationIndex}}" formControlName="squareFootage"
+              class="form-control" (change)="basicClassificationDataChanged(buildingIndex,classificationIndex)">
+          </div>
+        </div> 
+        <div class="row pull-right" *ngIf="isClassificationDataDirty(classificationIndex)">
+          <button type="button" class="btn btn-next button-margin" (click)="saveClassFields(buildingIndex,classificationIndex)" [disabled]="!isClassDisabled(buildingIndex,classificationIndex)">
+            <span>SAVE</span>
+          </button>
+        </div>
+        <div *ngIf="currentLocation.buildings[buildingIndex].classifications[classificationIndex]?.coverages">
+          <app-coverage-term [form]="classificationsPageForm[classificationIndex]" [bp7Coverages]="currentLocation.buildings[buildingIndex].classifications[classificationIndex].coverages"
+          (onCoverageInclusion)="onCoverageInclusion(buildingIndex, classificationIndex)" (onCoveragesChange)="onCoveragesChange($event, buildingIndex, classificationIndex)"></app-coverage-term>
+        </div>
+      </app-accordion>
+    </div>
+
+
+  </div>
+
+</form>
+
+
+<app-building-modal #deleteModal [propertyType]="propertyType" [buildingsPageForm]="buildingsPageForm" (nextValid)="classFormValid($event)"></app-building-modal>

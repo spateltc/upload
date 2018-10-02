@@ -1,0 +1,310 @@
+import { Component, ViewChild, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { FormBuilder, FormGroup, FormControl, Validators, FormArray, AbstractControl } from '@angular/forms';
+import { BOPLobDataService } from '../../../services/bop-lob-data.service';
+import { CommonDataService } from '../../../../../common/services/common.data.service';
+import { BuildingModalComponent } from '../building-modal/building-modal.component';
+import { CommonService } from '../../../../../common/services/common.service';
+import { SubmissionDataService } from '../../../services/submission-data.service';
+import { ClassCode, QuoteData } from '../../../../../common/interface/submission';
+import * as _ from 'lodash';
+import { Classification, BP7Coverages, Building, Location } from '../../../interface/bop-lob-data';
+import { BuildingService } from '../../../services/buildings.service';
+
+@Component({
+  selector: 'app-classification',
+  templateUrl: './classification.component.html',
+  styleUrls: ['./classification.component.scss']
+})
+export class ClassificationComponent implements OnInit {
+  @Input() buildingsPageForm: FormGroup;
+  @Input() building: FormGroup;
+  @Input() buildingIndex;
+  @Input() propertyType;
+  @Input() buildingSave = false;
+  @ViewChild(BuildingModalComponent) deleteModal: BuildingModalComponent;
+  classDescOption = [];
+  classification;
+  classificationcodebasis;
+  classPublicId;
+  classFixedId;
+  backupClassifications: Classification[];
+  @Output() nextValidation = new EventEmitter<Boolean>();
+  @Output() hideClassCodeMessage = new EventEmitter<Boolean>();
+  @Output() disableAddClassification = new EventEmitter<Boolean>();
+  currentLocation;
+  showClassCoverages = [];
+  basicClassificationFields = ['classcode', 'squareFootage'];
+
+  get buildings(): FormArray {
+    return <FormArray>this.buildingsPageForm.get('buildings');
+  }
+
+  get classificationsPageForm(): FormArray {
+    return <FormArray>this.buildings.controls[this.buildingIndex]['controls']['classificationsPageForm'].controls;
+  }
+
+  constructor(
+    private commonDataService: CommonDataService,
+    private bopLobDataService: BOPLobDataService,
+    private formBuilder: FormBuilder,
+    private commonService: CommonService,
+    private submissionDataService: SubmissionDataService,
+    private buildingService: BuildingService
+  ) { }
+
+  ngOnInit() {
+    this.currentLocation =
+      this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1];
+    this.classDescOption = this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes;
+    this.currentLocation.buildings = _.sortBy(this.currentLocation.buildings, 'publicID');
+    if (this.currentLocation.buildings[this.buildingIndex]) {
+      this.setClassification(this.currentLocation.buildings[this.buildingIndex], this.buildingIndex);
+      if (this.currentLocation.buildings[this.buildingIndex].classifications.length > 0) {
+        this.backupClassifications = _.sortBy(_.cloneDeep(this.currentLocation.buildings[this.buildingIndex].classifications), 'fixedID');
+        this.buildingService.storeClassificationBackup(
+          this.backupClassifications, this.currentLocation.buildings[this.buildingIndex].publicID
+        );
+      }
+    }
+  }
+
+  getControlValue(controlName, index) {
+    return this.building.controls.classificationsPageForm['controls'][index].controls[controlName].value;
+  }
+
+  setClassification(building, index) {
+    const form = <FormArray>this.buildings.controls[index].get('classificationsPageForm');
+    const length = form.length;
+    if (length === 0) {
+      _.forEach(building.classifications, (classification: Classification, classkey) => {
+        const classifications = <FormArray>this.buildings.controls[index].get('classificationsPageForm');
+        classifications.push(this.buildClassificationForm());
+        const classIndex = classifications.length - 1;
+        const classControl = classifications.controls[classIndex];
+        classControl.get('squareFootage').setValue(classification.classSquareFootage);
+        classControl.get('classcode').setValue(classification.classCode);
+        classControl.get('isClassSaved').setValue(true);
+      });
+    }
+  }
+
+  getclassificationsPageForm(buildingIndex) {
+    return <FormArray>this.buildings.controls[buildingIndex]['controls']['classificationsPageForm'].controls;
+  }
+
+  addClassifications(buildingIndex) {
+    const buildingscontrol = <FormArray>this.buildingsPageForm.controls['buildings'];
+    const control = <FormArray>buildingscontrol.controls[buildingIndex].get('classificationsPageForm');
+    control.push(this.buildClassificationForm());
+  }
+
+  deleteClassification(classificationIndex, buildingIndex, classCode?: string | number) {
+    if (!!classCode) {
+      this.hideClassCodeMessage.emit(false);
+    }
+    this.deleteModal.deleteClassification(classificationIndex, buildingIndex);
+    this.buildingsPageForm.markAsDirty();
+  }
+
+  buildClassificationForm(): FormGroup {
+    return this.formBuilder.group({
+      'squareFootage': new FormControl(''),
+      'leasedTenants': new FormControl(''),
+      'classcode': new FormControl(''),
+      'isClassSaved': new FormControl(false),
+      'isSquareFootage': new FormControl(false),
+      'isEnable': new FormControl(true)
+    });
+  }
+
+  getClassCodesList(buildingIndex, classificationIndex) {
+    let classCodeList = this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes;
+    const building = this.buildings.controls[buildingIndex];
+    const classificationspageForm = building.get('classificationsPageForm').value;
+    _.forEach(classificationspageForm, (item, key) => {
+      if (key !== classificationIndex && classificationspageForm[key].isClassSaved) {
+        classCodeList = _.filter(classCodeList, (subItem) => {
+          return subItem.code !== classificationspageForm[key].classcode; });
+      }
+    });
+    return classCodeList;
+  }
+
+  saveClassFields(buildingIndex, classificationIndex) {
+    const building = this.buildings.controls[buildingIndex];
+    const classificationspageForm = building.get('classificationsPageForm').value;
+    const individualClassification = classificationspageForm[classificationIndex];
+    const classNumber = classificationIndex + 1;
+    const classificationNumber = classNumber.toString();
+    const classCode = individualClassification.classcode;
+
+    _.forEach(this.classDescOption, (item: ClassCode) => {
+      if (item.code === classCode) {
+        this.classification = item.classificationTypeCode;
+        this.classificationcodebasis = item.classificationDescTypeCode;
+        if (individualClassification.isClassSaved) {
+          this.classPublicId = this.currentLocation.buildings[buildingIndex].classifications[classificationIndex].publicID;
+          const n = this.classPublicId.indexOf(':');
+          this.classFixedId = this.classPublicId.substring(n + 1);
+        }
+      }
+    });
+
+    const buildingClassificationObject = {
+      classPropertyType: this.classification,
+      classDescription: this.classificationcodebasis,
+      classCode: individualClassification.classcode,
+      classSquareFootage: individualClassification.squareFootage,
+      classificationNumber: classificationNumber,
+      sqftLeasedToOtherTenants: (individualClassification.leasedTenants === 'true'),
+      rABOPWanted: false
+    };
+
+    const buildingClassificationObjectUpdate = {
+      publicID: this.classPublicId,
+      fixedID: this.classFixedId,
+      classPropertyType: this.classification,
+      classDescription: this.classificationcodebasis,
+      classCode: individualClassification.classcode,
+      classSquareFootage: individualClassification.squareFootage,
+      classificationNumber: classificationNumber,
+      sqftLeasedToOtherTenants: (individualClassification.leasedTenants === 'true'),
+      rABOPWanted: false
+    };
+
+    const body = [
+      sessionStorage.getItem('submission'),
+      this.currentLocation.buildings[buildingIndex].publicID,
+      this.commonService.clean(buildingClassificationObject),
+      this.bopLobDataService.finalSubmission.sessionUUID,
+    ];
+
+    const updateBody = [
+      sessionStorage.getItem('submission'),
+      this.bopLobDataService.finalSubmission.sessionUUID,
+      this.currentLocation.buildings[buildingIndex].publicID,
+      this.commonService.clean(buildingClassificationObjectUpdate)
+    ];
+
+    if (individualClassification.isClassSaved) {
+      this.commonService.updateBuildingsClass(updateBody).subscribe((response) => {
+        this.updateClassificationInfo(buildingIndex, classificationIndex, response.result, true);
+      });
+
+    } else {
+      this.commonService.saveBuildingsClass(body).subscribe((response) => {
+        this.updateClassificationInfo(buildingIndex, classificationIndex, response.result, false);
+      });
+    }
+    this.pristineClassificationData(classificationIndex);
+    this.buildingsPageForm.markAsDirty();
+  }
+
+  updateClassificationInfo(buildingIndex, classificationIndex, response: Building, isSaved) {
+    this.currentLocation.buildings[buildingIndex].classifications = _.sortBy(response.classifications, 'fixedID');
+    this.currentLocation.buildings[buildingIndex].buildingUWQuestions = response.buildingUWQuestions;
+    const classficationControl = <FormArray>this.buildings.controls[buildingIndex].get('classificationsPageForm');
+    const control = classficationControl.controls[classificationIndex];
+    this.backupClassifications = _.cloneDeep(this.currentLocation.buildings[this.buildingIndex].classifications);
+    this.buildingService.storeClassificationBackup(
+      this.backupClassifications, this.currentLocation.buildings[this.buildingIndex].publicID
+     );
+    control.get('isClassSaved').setValue(true);
+    this.disableAddClassification.emit(false);
+  }
+
+  isClassDisabled(buildingIndex, classificationIndex) {
+    const classficationControl = <FormArray>this.buildings.controls[buildingIndex].get('classificationsPageForm');
+    const control = classficationControl.controls[classificationIndex];
+    const building = this.buildings.controls[buildingIndex];
+    const classificationsPageForm = building.get('classificationsPageForm').value;
+    const individualClassification = classificationsPageForm[classificationIndex];
+
+    if (individualClassification.isSquareFootage) {
+      if (individualClassification.classcode.length > 0 && individualClassification.squareFootage.length > 0
+        && individualClassification.leasedTenants.length > 0) {
+        control.get('isEnable').setValue(true);
+        return true;
+      }
+    }
+    if (individualClassification.classcode.length > 0 && individualClassification.squareFootage.length > 0) {
+      control.get('isEnable').setValue(true);
+      return true;
+    }
+    control.get('isEnable').setValue(false);
+    return false;
+  }
+
+  change() {
+    this.nextValidation.emit(true);
+  }
+
+  classFormValid(value) {
+    this.nextValidation.emit(true);
+  }
+
+  get bopSubmission(): QuoteData {
+    return this.bopLobDataService._finalSubmission;
+  }
+
+  onCoveragesChange($event, buildingIndex, classificationIndex) {
+    const building: Building = (<Location>this.currentLocation).buildings[buildingIndex];
+    if ($event) {
+      const classification: Classification = building.classifications[classificationIndex];
+      classification.coverages = <BP7Coverages>$event;
+    }
+  }
+
+  // sync call for additional coverages
+  onCoverageInclusion(buildingIndex, classificationIndex) {
+    const building: Building = (<Location>this.currentLocation).buildings[buildingIndex];
+    const classification: Classification = building.classifications[classificationIndex];
+    this.bopLobDataService.syncBP7ClassificationClauses(this.bopSubmission.quoteID, this.bopSubmission.sessionUUID,
+      classification.publicID, classification.coverages).subscribe((response) => {
+        classification.coverages = (<BP7Coverages>response.result);
+      });
+  }
+
+  isClassificationDataDirty(classificationIndex) {
+    const classification: FormGroup =
+      <FormGroup>this.classificationsPageForm[classificationIndex];
+    let dataChanged: Boolean = false;
+    _.forEach(this.basicClassificationFields, (field: string) => {
+      const formControl = classification.get(field);
+      if (formControl && formControl.dirty) {
+        dataChanged = true;
+        return;
+      }
+    });
+    return dataChanged;
+  }
+
+  basicClassificationDataChanged(buildingIndex, classificationIndex) {
+    const classification: FormGroup =
+      <FormGroup>this.classificationsPageForm[classificationIndex];
+    // Return if there are no classifications
+    if (_.isUndefined(this.currentLocation.buildings[buildingIndex].classifications[classificationIndex])) {
+      return;
+    }
+    // If basic data is dirty, remove coverages form control and delete the coverages object.
+    if (this.isClassificationDataDirty(classificationIndex)) {
+      classification.removeControl('coverages');
+      delete this.currentLocation.buildings[buildingIndex].classifications[classificationIndex].coverages;
+    }
+    const classificationsList =
+      this.buildings.controls[buildingIndex].get('classificationsPageForm')['controls'];
+    _.forEach(classificationsList, (field: AbstractControl) => {
+      if (field && !field.get('classcode').value && !field.get('isClassSaved').value) {
+        field.get('classcode').setValue('');
+      }
+    });
+  }
+
+  pristineClassificationData(index) {
+    const classification: FormGroup =
+      <FormGroup>this.classificationsPageForm[index];
+    _.forEach(this.basicClassificationFields, (field: string) => {
+      classification.get(field).markAsPristine();
+    });
+  }
+}

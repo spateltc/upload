@@ -1,0 +1,278 @@
+<div class="buildings-wrapper">
+  <div class="header-content">
+    <span>Buildings</span>
+  </div>
+  <div *ngIf="invalidCoverages.length > 0">
+    <app-invalid-coverages [invalidCoverages]="invalidCoverages"></app-invalid-coverages>
+  </div>
+  <div  class="row pad margin-left-0">
+    <form [formGroup]="buildingsPageForm">
+
+      <div class="col-md-12 pad-right-zero" formArrayName="buildings" *ngFor="let building of buildings.controls; let buildingIndex=index">
+        <div [formGroupName]="buildingIndex">
+          <app-accordion [disabled]="false" [isOpen]="true" [isModified]="false" [isDelete]="true" (triggerCorrectAddress)='deleteBuilding(buildingIndex)'
+            title="Building {{buildingIndex+1}}">
+            <div class="form-select col-left-padding col-md-6">
+              <div class="form-group">
+                <label attr.for="{{'constructionType'+buildingIndex}}" class="optional-field">
+                  <span>Construction Type</span>
+                </label>
+                <select class="form-control" formControlName="constructionType" id="{{'constructionType'+buildingIndex}}" (change)="basicBuildingDataChanged(buildingIndex)">
+                  <option disabled value=""> Select</option>
+                  <option *ngFor="let conType of submissionDataService?.bopMetaData?.construction" ngDefaultControl value={{conType.code}}>
+                    {{conType.desc}}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="form-input col-left-padding col-md-6">
+                <div class="form-group" *ngIf="isExposureVisible">
+                  <label data-tooltip="Annual gross sales for Restaurants,Annual Payroll for Contractors" attr.for="{{'exposure'+buildingIndex}}"
+                    class="optional-field">
+                    <span>Building Liability Exposure</span>
+                  </label>
+                  <input type="text"  appNoLeadTrailSpaces id="{{'exposure'+buildingIndex}}" formControlName="exposure" class="form-control">
+                </div>
+              </div>
+            <div class="boolean-question clearfix boolean-radio"></div>
+            <div class="boolean-question clearfix">
+              <div class="row-content">
+                <div class="col-md-6 col-lg-6 col-sm-6 padding-left-10 margin-top-2">
+                  <p>Automatic Sprinkler System</p>
+                </div>
+                <div class="col-md-3 col-sm-3">
+                  <div class="radio gird-radio-padding">
+                    <input type="radio" formControlName="automaticControlSystem" [id]="'sprinklerYes'+buildingIndex" value="true">
+                    <label [for]="'sprinklerYes'+buildingIndex">
+                      <span class="radio">Yes</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-3 col-sm-3">
+                  <div class="radio gird-radio-padding">
+                    <input type="radio" [id]="'sprinklerNo'+buildingIndex" formControlName="automaticControlSystem" value="false">
+                    <label [for]="'sprinklerNo'+buildingIndex">
+                      <span class="radio">No</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--Square Footage Leased-->
+            <div *ngIf="squareFootageDisplay">
+              <div class="boolean-question clearfix">
+                <div class="row-content">
+                  <div class="col-md-6 col-lg-6 col-sm-6 padding-left-10 margin-top-2">
+                    <p>Square Footage is leased to other tenants</p>
+                  </div>
+                  <div class="col-md-3 col-sm-3">
+                    <div class="radio gird-radio-padding">
+                      <input type="radio" formControlName="sqFootageLeasedToOthrTenInd" [id]="'sqFootageYes'+buildingIndex" value="true">
+                      <label [for]="'sqFootageYes'+buildingIndex">
+                        <span class="radio">Yes</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-md-3 col-sm-3">
+                    <div class="radio gird-radio-padding">
+                      <input type="radio" [id]="'sqFootageNo'+buildingIndex" formControlName="sqFootageLeasedToOthrTenInd" value="false">
+                      <label [for]="'sqFootageNo'+buildingIndex">
+                        <span class="radio">No</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="boolean-question clearfix" *ngIf="buildings.controls[buildingIndex].get('buildingCoverageSelected').value">
+              <div class="row-content">
+                <div class="col-md-6 col-lg-6 col-sm-6 padding-left-10 margin-top-2">
+                  <p>Percentage owner occupied</p>
+                </div>
+                <div class="col-md-3 col-sm-3" *ngFor="let item of percentageOwnerOccupied; let percentageIndex = index">
+                  <div class="radio gird-radio-padding pull-left">
+                    <input type="radio" formControlName="PercentageOwnerOccupied" [id]="'Percentage'+buildingIndex+percentageIndex" [value]="item.code">
+                    <label [for]="'Percentage'+buildingIndex+percentageIndex">
+                      <span class="radio">{{item.desc}}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="padding-top building-cov-details" *ngIf="buildings.controls[buildingIndex].get('buildingCoverageSelected').value">
+              <div class="row">
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'yearBuilt'+buildingIndex}}" class="optional-field">
+                      <span>Year Built</span>
+                    </label>
+                    <input type="text" id="{{'yearBuilt'+buildingIndex}}" appOnlyNumber="true" appYearRangeValidator (change)="defaultBuiltYear(buildingIndex)"
+                      (checkYearRange)="checkYearRange($event, 'yearBuilt', buildingIndex)" maxlength="4" formControlName="yearBuilt" class="form-control">
+                  </div>
+                </div>
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group" [ngClass]="displayFieldCSS('numberOfStories', buildingIndex)">
+                    <label attr.for="{{'numberOfStories'+buildingIndex}}" class="optional-field">
+                      <span>Number of Stories</span>
+                    </label>
+                    <input type="text" id="{{'numberOfStories'+buildingIndex}}" appOnlyNumber="true" maxlength="2" formControlName="numberOfStories"
+                      class="form-control">
+                  </div>
+                  <app-field-error *ngIf="buildings.controls[buildingIndex].get('numberOfStories').hasError('pattern')" [formValue]="getFieldControl('numberOfStories', buildingIndex)" errorMsg="Number of Stories must be greater than 0."></app-field-error>
+                </div>
+              </div>
+              <div class="row">
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'totalBuildingArea'+buildingIndex}}" class="optional-field">
+                      <span>Total Building Area</span>
+                    </label>
+                    <input type="text" maxlength="4" id="{{'totalBuildingArea'+buildingIndex}}" appOnlyNumber="true" formControlName="totalBuildingArea"
+                      class="form-control">
+                  </div>
+                </div>
+                <div class="form-select col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'roofType'+buildingIndex}}">
+                      <span>Roof Type</span>
+                    </label>
+                    <select class="form-control" formControlName="roofType" id="{{'roofType'+buildingIndex}}">
+                      <option disabled value=""> Select</option>
+                      <option *ngFor="let roofType of submissionDataService?.bopMetaData?.roofType" ngDefaultControl value={{roofType.code}}>
+                        {{roofType.desc}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'RoofReplacementYear'+buildingIndex}}" class="optional-field">
+                      <span>Year of Last Roof Replacement</span>
+                    </label>
+                    <input type="text" appOnlyNumber="true" appYearRangeValidator (checkYearRange)="checkYearRange($event, 'RoofReplacementYear', buildingIndex)"
+                      maxlength="4" id="{{'RoofReplacementYear'+buildingIndex}}" formControlName="RoofReplacementYear" class="form-control">
+                  </div>
+                </div>
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'roofArea'+buildingIndex}}" class="optional-field">
+                      <span>Roof Area</span>
+                    </label>
+                    <input type="text" id="{{'roofArea'+buildingIndex}}" maxlength="7" formControlName="roofArea" class="form-control" placeholder="Optional">
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="form-select col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'roofSlope'+buildingIndex}}">
+                      <span>Roof Slope</span>
+                    </label>
+                    <select class="form-control" formControlName="roofSlope" id="{{'roofSlope'+buildingIndex}}">
+                      <option disabled value=""> Select</option>
+                      <option *ngFor="let roofSlope of submissionDataService?.bopMetaData?.roofSlope" ngDefaultControl value={{roofSlope.code}}>
+                        {{roofSlope.desc}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-select col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'roofShape'+buildingIndex}}">
+                      <span>Roof shape</span>
+                    </label>
+                    <select class="form-control" formControlName="roofShape" id="{{'roofShape'+buildingIndex}}">
+                      <option disabled value="">Select</option>
+                      <option *ngFor="let roofShape of submissionDataService?.bopMetaData?.roofShape" ngDefaultControl value={{roofShape.code}}>
+                        {{roofShape.desc}}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'YearWiringUpdated'+buildingIndex}}" class="optional-field">
+                      <span>Year Wiring Updated</span>
+                    </label>
+                    <input type="text" maxlength="4" appYearRangeValidator (checkYearRange)="checkYearRange($event, 'YearWiringUpdated', buildingIndex)"
+                      appOnlyNumber="true" id="{{'YearWiringUpdated'+buildingIndex}}" formControlName="YearWiringUpdated" class="form-control"
+                      placeholder="Optional">
+                  </div>
+                </div>
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'YearPlumbingUpdated'+buildingIndex}}" class="optional-field">
+                      <span>Year Plumbing Updated</span>
+                    </label>
+                    <input type="text" maxlength="4" appOnlyNumber="true" appYearRangeValidator (checkYearRange)="checkYearRange($event, 'YearPlumbingUpdated', buildingIndex)"
+                      id="{{'YearPlumbingUpdated'+buildingIndex}}" formControlName="YearPlumbingUpdated" class="form-control" placeholder="Optional">
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="form-input col-left-padding col-md-6">
+                  <div class="form-group">
+                    <label attr.for="{{'YearHeatingUpdate'+buildingIndex}}" class="optional-field">
+                      <span>Year Heating Updated</span>
+                    </label>
+                    <input type="text" maxlength="4" appOnlyNumber="true" appYearRangeValidator (checkYearRange)="checkYearRange($event, 'YearHeatingUpdate', buildingIndex)"
+                      id="{{'YearHeatingUpdate'+buildingIndex}}" formControlName="YearHeatingUpdate" class="form-control" placeholder="Optional">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row pull-right" *ngIf="isBasicBuildingDataDirty(buildingIndex) || isNewBuilding(buildingIndex)">
+              <button type="button" class="btn btn-next button-margin" (click)="saveFields(buildingIndex)" [disabled]="!isDisabled(buildingIndex)">
+                <span>SAVE</span>
+              </button>
+            </div>
+            <div class="row building-coverages" *ngIf="currentLocation.buildings[buildingIndex]?.coverages">
+              <app-coverage-term [form]="buildings.controls[buildingIndex]" (onCoverageInclusion)="onCoverageInclusion(buildingIndex)" (onCoveragesChange)="onCoveragesChange($event, buildingIndex)" [bp7Coverages]="currentLocation.buildings[buildingIndex]?.coverages"></app-coverage-term>
+            </div>
+            <div *ngIf="currentLocation.buildings[buildingIndex]?.classifications">
+              <app-classification [buildingsPageForm]="buildingsPageForm" [propertyType]="primaryClassType" [building]="building" (nextValidation)="classFormValidTest($event)" (hideClassCodeMessage)="hideClassCode($event)"
+                [buildingIndex]="buildingIndex" [buildingSave]="buildingSave" (disableAddClassification)="disableAddClassification($event, buildingIndex)"></app-classification>
+              <div class="row"></div>
+              <h4 class="row add-wrap" *ngIf="building.get('isSaved').value" (click)="addClassifications(buildingIndex)" [ngClass]="{'cursor-auto': building.get('addClassificationCheck').value}">
+                <div class="add-classification-btn">
+                  <span class="magnify">+</span>
+                  <span>ADD CLASSIFICATION</span>
+                </div>
+              </h4>
+            </div>
+            <div class="col-md-12" *ngIf="checkAnswersList(buildingIndex)">
+              <app-uw-questions [form]="buildingsPageForm" [buildingIndex]="buildingIndex" [answerList]="currentLocation.buildings[buildingIndex].buildingUWQuestions[0].answers" [coverableType]="'Building'" [isCoverage]="false" (updateUWQuestion)="updateUWQuestion($event, buildingIndex)"></app-uw-questions>
+            </div>
+          </app-accordion>
+        </div>
+      </div>
+      <div class="col-md-12 add-building-btn">
+        <h4 class="add-wrap" (click)="addBuilding()">
+          <span class="magnify">+</span> ADD BUILDING
+        </h4>
+      </div>
+    </form>
+  </div>
+  <div class="col-md-12 col-lg-12 col-sm-12 margin-top-4">
+    <div class="pull-left">
+      <button type="button" class="btn btn-back" (click)="backConfirmationModal()">
+        <i class="material-icons">arrow_back</i>
+        <span>BACK</span>
+      </button>
+    </div>
+    <div class="pull-right">
+      <button type="button" class="btn btn-next" (click)="proceedToNext()" [disabled]="!disableFinalSave()">
+        <span>NEXT</span>
+        <i class="material-icons">arrow_forward</i>
+      </button>
+    </div>
+  </div>
+</div>
+<app-building-modal #deletebuildingModal [propertyType]="primaryClassType" [buildingsPageForm]="buildingsPageForm"></app-building-modal>
+<app-back-confirmation-modal (proceedToNext)="goBack()"></app-back-confirmation-modal>

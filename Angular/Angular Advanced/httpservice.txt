@@ -1,0 +1,134 @@
+import { Injectable } from '@angular/core';
+import { Http, Headers, Response } from '@angular/http';
+import { HttpClient, HttpHeaders, HttpResponse, HttpErrorResponse } from '@angular/common/http';
+import { Observable } from 'rxjs/Observable';
+import { HttpUtilityService, PortalHttpResponse } from './http-utility.service';
+import { Subject } from 'rxjs/Subject';
+import { environment } from '../../../environments/environment';
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
+import 'rxjs/add/operator/map';
+import { CommonDataService } from './common.data.service';
+import { Constants } from '../../bop/submission/services/constants';
+import 'rxjs/add/observable/throw';
+
+const headers = new HttpHeaders()
+  .set('Content-Type', 'application/json');
+@Injectable()
+
+export class HttpService {
+
+  constructor(
+    private http: HttpClient,
+    private httpUtilityService: HttpUtilityService,
+    private router: Router,
+    private location: Location,
+    private commonDataService: CommonDataService
+  ) { }
+  hideLoader = new Subject<boolean>();
+  displayLoader = new Subject<boolean>();
+  hideLoaderCalled = this.hideLoader.asObservable();
+  displayLoaderCalled = this.displayLoader.asObservable();
+
+  getBaseURLDetails() {
+    const loct: any = this.location;
+    const URL = loct._platformStrategy._platformLocation.location.origin;
+    if (URL.indexOf('ad1.guidehome.com') !== -1) {
+      return environment.devMuleURL;
+    } else if (URL.indexOf('at1.guidehome.com') !== -1) {
+      return environment.qaMuleURL;
+    } else if (URL.indexOf('ap1.guidehome.com') !== -1) {
+      return environment.prodMuleURL;
+    } else if (URL.indexOf('au1.guidehome.com') !== -1) {
+      return environment.uatMuleURL;
+    } else if (URL.indexOf('localhost') !== -1) {
+      return environment.devMuleURL;
+    }
+  }
+
+  muleSoftUrl(status) {
+    if (status === 'edge') {
+      return environment.edgeURL;
+    } else {
+      return this.getBaseURLDetails();
+    }
+  }
+
+  post(path, object, isDependent = false, status = '', loadertext?: string): Observable<any> {
+    this.httpUtilityService.resetErrorsWarnings();
+    this.commonDataService.loaderText = loadertext;
+    this.displayLoader.next(true);
+    const body = { id: '1', jsonrpc: '2.0' };
+    const serviceUrl = this.muleSoftUrl(status) + path;
+    return this.http.post(serviceUrl, object, { headers })
+      .map((response: PortalHttpResponse) => {
+        if (!isDependent) {
+          this.hideLoader.next(false);
+        }
+        return this.httpUtilityService.parseResponse(response);
+      })
+      .catch((error: HttpErrorResponse) => {
+        this.hideLoader.next(false);
+        this.httpUtilityService.handleErrorResponse(error);
+        return Observable.throw(error);
+      });
+  }
+
+  get(url, key, isDependent = false, object = {}, status = false): Observable<any> {
+    this.httpUtilityService.resetErrorsWarnings();
+    this.displayLoader.next(true);
+    const body = { id: '1', jsonrpc: '2.0' };
+    const requestPayload = JSON.stringify(body);
+    const serviceUrl = this.muleSoftUrl(status) + url + key;
+    return this.http.get(serviceUrl)
+      .map((response: PortalHttpResponse) => {
+        if (!isDependent) {
+          this.hideLoader.next(false);
+        }
+        return this.httpUtilityService.parseResponse(response);
+      })
+      .catch((error: HttpErrorResponse) => {
+        this.hideLoader.next(false);
+        this.httpUtilityService.handleErrorResponse(error);
+        return Observable.throw(error);
+      }
+      );
+  }
+
+  // Temporary post request for the services which has different endpoints
+
+  commonPost(URL, object, isDependent = false, showErrorMessage = true): Observable<any> {
+    this.httpUtilityService.resetErrorsWarnings();
+    this.displayLoader.next(true);
+    const body = { id: '1', jsonrpc: '2.0' };
+    return this.http.post(URL, object, { headers })
+      .map((response: PortalHttpResponse) => {
+        if (!isDependent) {
+          this.hideLoader.next(false);
+        }
+        return this.httpUtilityService.parseResponse(response);
+      })
+      .catch((error: HttpErrorResponse) => {
+        if (showErrorMessage) {
+          this.hideLoader.next(false);
+          this.httpUtilityService.handleErrorResponse(error);
+          return Observable.throw(error);
+        } else {
+          this.commonDataService.iscorrectAddressLookup = true;
+        }
+      }
+      );
+  }
+
+  hideServiceLoader() {
+    this.hideLoader.next(false);
+  }
+
+  triggerCorrectAddressLookup() {
+    this.commonDataService.topErrorMessage = Constants.addressCleanseWarning;
+    const error = new HttpErrorResponse({error: this.commonDataService.topErrorMessage, status: 500});
+    this.httpUtilityService.handleErrorResponse(error);
+    return Observable.throw(error);
+  }
+}
+

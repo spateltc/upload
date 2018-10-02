@@ -1,0 +1,44 @@
+<header></header>
+  <h1>
+         <font size="4"><span>Legacy Charter C3 Audit For {{locParam}}</span></font> <br/>     
+  </h1>
+  <h1>
+         <font size="3"><span>Start date</span></font>   
+         <input type="date"  id="startDate"  (change)="dateBasedValueFetch()"  >   
+         <font size="3"><span>End date</span></font>   
+         <input type="date" id="endDate"  (change)="dateBasedValueFetch()" >   
+  </h1>
+ 
+  <table id="customers">
+  <tr>
+    <th  style="width: 250px;text-align: left;">  Add TimeStamp (MDT)</th>  
+    <th> Deluxe</th>
+    <th> Alphanso</th>
+    <th>  Digital Smith  </th>  
+    <th> Mapped Assets</th>
+    <th> DS/ Deluxe %</th>
+    <th> Mapped Deluxe %</th>
+    <th> Link to Detail Report</th>
+  </tr>
+
+  <tr *ngFor="let row of barChartData" class="alnright">
+    <td align="left">{{row.add_TIMESTAMP | slice:0:16}}</td> 
+    <td>{{row.deluxe}}</td>
+    <td>{{row.alphanso}}</td>
+    <td>{{row.digital_SMITH}}</td>
+    <td>{{row.mapped_ASSETS}}</td>
+    <td>{{row.digital_SMITH}}</td>
+    <td>{{row.ds_DELUXE}}</td>
+    <td><a href={{row.link_TO_REPORT}}>Click Here</a></td>				
+  </tr>
+  <tr   *ngIf="barChartData.length <= 0" class="alnright">
+    <td align="left">-</td> 
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>				
+  </tr>
+</table>

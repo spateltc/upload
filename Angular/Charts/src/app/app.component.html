@@ -1,0 +1,93 @@
+
+<style>
+    div.half { width: 50%; height: 50%; float: left; background: white; border:0.1px solid #d7dfe8; } 
+</style>
+
+
+
+<div id="main" class="main" >
+
+
+<div droppable (drop)="onDrop1($event)" id="dropAreaText1" class="half" >
+  
+  <confirm [hidden]="showChart1" (onConfirm)='handleOnConfirm1($event)'></confirm>
+      <p id="dropText1" >drop chart here </p>
+ <pie-chart-demo [hidden]="showChart1" id="pc1" [data]="data1"></pie-chart-demo>
+  
+</div>
+
+
+<div  droppable (drop)="onDrop2($event)" id="dropAreaText2" class="half"  >
+<confirm [hidden]="showChart2" (onConfirm)='handleOnConfirm2($event)'></confirm>
+      <p id="dropText2" >drop chart here </p>
+ <pie-chart-demo [hidden]="showChart2" id="pc2" [data]="data2"></pie-chart-demo>
+
+</div>
+
+
+<div  droppable (drop)="onDrop3($event)" id="dropAreaText3" class="half" >
+<confirm [hidden]="showChart3" (onConfirm)='handleOnConfirm3($event)'></confirm>
+      <p id="dropText3" >drop chart here </p>
+ <pie-chart-demo [hidden]="showChart3" id="pc3" [data]="data3"></pie-chart-demo>
+</div>
+
+<div  droppable (drop)="onDrop($event)" id="dropAreaText4" class="half" >
+<confirm [hidden]="showChart" (onConfirm)='handleOnConfirm($event)'></confirm>
+      <p id="dropText" >drop chart here</p>
+       <pie-chart-demo [hidden]="showChart" id="pc" [data]="data"></pie-chart-demo>
+</div>
+</div> 
+
+
+<div id="sub"  class="sub">
+    <drag-drop-demo (showPieChart)="showPieChart($event)"></drag-drop-demo>
+</div>
+
+
+
+ <!--
+<td>
+  <div>
+      // pop up
+  <confirm [hidden]="showChart" (onConfirm)='handleOnConfirm($event)'></confirm>
+  
+   </div>
+</td>
+
+ <td width="60%">
+
+<div>
+//   pie chart 
+    <pie-chart-demo [hidden]="showChart" id="pc" [data]="data"></pie-chart-demo>
+
+</div>
+
+ </td>
+
+
+
+
+
+ <td style="width:40%">
+  <div>
+      // drag drop and tools box
+  <drag-drop-demo (showPieChart)="showPieChart($event)"></drag-drop-demo>
+  
+ 
+  </div>
+
+  </td>
+
+
+
+-->
+
+
+
+
+
+
+
+
+
+

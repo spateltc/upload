@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!DOCTYPE hibernate-configuration PUBLIC
+    "-//Hibernate/Hibernate Configuration DTD//EN"
+    "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+
+<hibernate-configuration>
+
+	<session-factory>
+	   	<mapping class="com.deloitte.twb.bean.TestSuiteBean" />   
+ 	    <mapping class="com.deloitte.twb.bean.TestCaseBean" />     
+	 	<mapping class="com.deloitte.twb.bean.TestStepsBean" />   
+		<mapping class="com.deloitte.twb.bean.TestScreenShotBean" />    
+	 	<mapping class="com.deloitte.twb.bean.AlmReqMapping" />   
+		<mapping class="com.deloitte.twb.bean.PReqFinal" />   
+		<mapping class="com.deloitte.twb.bean.PTestSetFinal" />   
+		<mapping class="com.deloitte.twb.bean.PTestInstanceFinal" />
+		<mapping class="com.deloitte.twb.bean.TestPlanList" /> 
+		<mapping class="com.deloitte.twb.bean.ColorsTestCasesStatus"/>
+       	<mapping class="com.deloitte.twb.bean.TestInstanceStatusBean" />
+		<mapping class="com.deloitte.twb.bean.DSRQueryInputBean"/>
+		<mapping class="com.deloitte.twb.bean.PDefectsFinal"/>
+		<mapping class="com.deloitte.twb.bean.DTWPrograms"/>
+		<mapping class="com.deloitte.twb.bean.PcommentsBean"/>
+		<mapping class="com.deloitte.twb.bean.PresourcesBean"/>
+		<mapping class="com.deloitte.twb.bean.SITDates"/>
+		<mapping class="com.deloitte.twb.bean.TasksPlanning"/>
+		<mapping class="com.deloitte.twb.bean.BarChartBean"/>
+		<mapping class="com.deloitte.twb.bean.DtwIntegration"/>
+		<mapping class="com.deloitte.twb.bean.LGDefectsStatusBean"/>
+		<mapping class="com.deloitte.twb.bean.AllDefectsStatusBean"/>
+		<mapping class="com.deloitte.twb.bean.ColorsDefectPriority"/>
+		<mapping class="com.deloitte.twb.bean.ColorsDefectsStatus"/>
+		<mapping class="com.deloitte.twb.bean.GhostRiderBean"/>   
+		<mapping class="com.deloitte.twb.bean.MapBean"/>   
+	</session-factory>
+
+</hibernate-configuration>

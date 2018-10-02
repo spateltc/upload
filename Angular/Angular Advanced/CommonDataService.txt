@@ -1,0 +1,219 @@
+import { Injectable } from '@angular/core';
+import { Http, Response, Headers, RequestOptions } from '@angular/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import * as _ from 'underscore';
+import { Observable } from 'rxjs/Observable';
+import { ProductsResponse } from '../interface/products';
+
+@Injectable()
+export class CommonDataService {
+
+  constructor(private http: HttpClient) { }
+  showLeftNav = true;
+  errorData = [];
+  errorIndicatorVal;
+  iscorrectAddressLookup = false;
+  months = [
+    { id: 0, value: 'january', displayText: 'January' },
+    { id: 1, value: 'february', displayText: 'February' },
+    { id: 2, value: 'march', displayText: 'March' },
+    { id: 3, value: 'april', displayText: 'April' },
+    { id: 4, value: 'may', displayText: 'May' },
+    { id: 5, value: 'june', displayText: 'June' },
+    { id: 6, value: 'july', displayText: 'July' },
+    { id: 7, value: 'august', displayText: 'August' },
+    { id: 8, value: 'september', displayText: 'September' },
+    { id: 9, value: 'october', displayText: 'October' },
+    { id: 10, value: 'november', displayText: 'November' },
+    { id: 11, value: 'december', displayText: 'December' }
+  ];
+  productsResponse: ProductsResponse;
+  appitteAnswers = [];
+  isFromProductsScreen = false;
+  locationReload: boolean;
+  endorsedPrograms = [
+    {
+      denomination: 'Baptist Bible Fellowship International (BBFI)',
+      endorsedProgram: 'Baptist Bible Fellowship International (BBFI) - Church'
+    },
+    {
+      denomination: 'Bible Methodist Connection of Churches (BMCC)',
+      endorsedProgram: 'Bible Methodist Connection of Churches (BMCC) - Church'
+    },
+    {
+      denomination: 'Church of God (Anderson, IN)',
+      endorsedProgram: 'Church Builders Plus / Church of God  (Anderson, IN) - Church'
+    },
+    {
+      denomination: 'Friends - Evangelical Friends, General Conference, Religious Society, United, Quakers',
+      endorsedProgram: 'Friends Insurance Group – Meetings part of the Church Niche'
+    },
+    {
+      denomination: 'Islamic Shura Council of Southern California',
+      endorsedProgram: 'Islamic Shura Council of Southern California – Mosque part of the Church Niche'
+    },
+    {
+      denomination: 'Pentecostal Church of God',
+      endorsedProgram: 'Pentecostal Church of God - Church'
+    }
+  ];
+  navData = [
+    {
+      text: 'Business Info',
+      id: 1,
+      route: 'bop/submission/businessInfo',
+      isCompleted: false,
+      isActive: false,
+      isChild: false,
+      hasChild: false,
+      parentId: null,
+      locationNo: 0
+    },
+    {
+      text: 'Business Owner\'s Policy',
+      id: 2,
+      isCompleted: false,
+      route: '',
+      isActive: false,
+      isChild: false,
+      hasChild: true,
+      parentId: null,
+      locationNo: 0
+    },
+    {
+      text: 'Eligibility',
+      id: 3,
+      parentId: 2,
+      route: 'bop/submission/eligibility',
+      isCompleted: false,
+      isActive: false,
+      isChild: true,
+      hasChild: false,
+      locationNo: 0
+    },
+    {
+      text: 'Policy Info',
+      id: 4,
+      parentId: 2,
+      route: 'bop/submission/policyInfo',
+      isCompleted: false,
+      isActive: false,
+      isChild: true,
+      hasChild: false,
+      locationNo: 0
+    },
+    {
+      text: 'Location',
+      id: 5,
+      parentId: 2,
+      route: 'bop/submission/locations',
+      isCompleted: false,
+      isActive: false,
+      isChild: true,
+      hasChild: false,
+      locationNo: 1
+    },
+    {
+      text: 'Buildings',
+      id: 6,
+      parentId: 2,
+      route: 'bop/submission/buildings',
+      isCompleted: false,
+      isActive: false,
+      isChild: true,
+      hasChild: false,
+      locationNo: 1
+    },
+    {
+      text: 'Blankets & Addt\'l Insured',
+      id: 7,
+      parentId: 2,
+      route: 'bop/submission/blankets',
+      isCompleted: false,
+      isActive: false,
+      isChild: true,
+      hasChild: false,
+      locationNo: 0
+    },
+    {
+      text: 'Quote',
+      id: 8,
+      route: 'bop/submission/quote',
+      isCompleted: false,
+      isChild: false,
+      isActive: false,
+      hasChild: false,
+      parentId: null,
+      locationNo: 0
+    },
+    {
+      text: 'Payment',
+      id: 9,
+      route: 'bop/submission/payment',
+      isCompleted: false,
+      isActive: false,
+      isChild: false,
+      hasChild: false,
+      parentId: null,
+      locationNo: 0
+    }
+  ];
+  _topErrorMessage: string;
+  isQuoted = false;
+  quotedNumber = '';
+  accountNumber = '';
+  _activeLocation: number;
+  _invalidCoverages = [];
+  loaderText: string ;
+  _nextClicked: boolean;
+
+  set activeLocation(locationNo: number) {
+    this._activeLocation = locationNo;
+  }
+
+  get activeLocation() {
+    return this._activeLocation;
+  }
+
+
+  get topErrorMessage() {
+    return this._topErrorMessage;
+  }
+
+  set topErrorMessage(value) {
+    this._topErrorMessage = value;
+  }
+
+  set invalidCoverages(invalidCoveragesList) {
+    this._invalidCoverages = invalidCoveragesList;
+  }
+
+  get invalidCoverages() {
+      return this._invalidCoverages;
+  }
+
+  set nextClicked(value: boolean) {
+    this._nextClicked = value;
+  }
+
+  get nextClicked() {
+      return this._nextClicked;
+  }
+
+  getNavData() {
+    return Observable.of(this.navData);
+  }
+
+  showQuotedInformation(quoteNumber, accountNumber) {
+    this.isQuoted = _.isEmpty(quoteNumber) ? false : true;
+    this.quotedNumber = quoteNumber;
+    this.accountNumber = accountNumber;
+  }
+  setErrorIndicator(errorIndicator) {
+    this.errorIndicatorVal = errorIndicator;
+  }
+  getErrorIndicator() {
+    return this.errorIndicatorVal;
+  }
+
+}

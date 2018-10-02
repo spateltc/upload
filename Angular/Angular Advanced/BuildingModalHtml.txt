@@ -1,0 +1,50 @@
+<app-modal #deleteConfirmationModal class="remove-border">
+    <div class="app-modal-header">
+      <div class="row modal-header-content confirmation-header">
+        Delete Building
+      </div>
+    </div>
+    <div class="app-modal-body">
+      <div class="row">
+        <span *ngIf="!isOnlyBuilding" class="modal-body-span">Are you sure you want to delete the building details.</span>
+        <span *ngIf="isOnlyBuilding" class="modal-body-span">This is the only building at this location. Location must have at least one associated building. Please delete this
+          location.
+        </span>
+      </div>
+    </div>
+    <div class="app-modal-footer">
+      <div class="row" *ngIf="!isOnlyBuilding">
+        <button type="button" class="btn btn-primary" (click)="discardDelete()">No</button>
+        <button type="button" class="btn btn-primary" (click)="confirmDelete()">Yes</button>
+      </div>
+      <div class="row" *ngIf="isOnlyBuilding">
+        <button type="button" class="btn btn-primary" (click)="deleteConfirmationModal.hide()">Ok</button>
+      </div>
+    </div>
+  </app-modal>
+  
+  <app-modal #deleteConfirmationModalClass class="remove-border">
+    <div class="app-modal-header">
+      <div class="row modal-header-content confirmation-header">
+        Delete Classification
+      </div>
+    </div>
+    <div class="app-modal-body">
+      <div class="row">
+        <span *ngIf="!isOnlyClassification" class="modal-body-span">Are you sure you want to delete the class details.</span>
+        <span *ngIf="isOnlyClassification" class="modal-body-span">This is the only classification on this building. Each building must have at least one classification. Please delete
+          this building.
+        </span>
+      </div>
+    </div>
+    <div class="app-modal-footer">
+      <div class="row" *ngIf="!isOnlyClassification">
+        <button type="button" class="btn btn-primary" (click)="deleteConfirmationModalClass.hide()">No</button>
+        <button type="button" class="btn btn-primary" (click)="confirmClassDelete()">Yes</button>
+      </div>
+      <div class="row" *ngIf="isOnlyClassification">
+        <button type="button" class="btn btn-primary" (click)="deleteConfirmationModalClass.hide()">Ok</button>
+      </div>
+    </div>
+  </app-modal>
+  

@@ -1,0 +1,322 @@
+import 'rxjs/add/operator/catch';
+import 'rxjs/add/operator/delay';
+import 'rxjs/add/operator/map';
+
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import * as _ from 'lodash';
+
+import { BOPLobData, Building, Classification, Location } from '../../bop/submission/interface/bop-lob-data';
+import { Constants } from '../../bop/submission/services/constants';
+import { CommonDataService } from '../../common/services/common.data.service';
+import { HttpService } from '../../common/services/http.service';
+import { QuoteData } from '../interface/submission';
+
+const headers = new HttpHeaders()
+  .set('Content-Type', 'application/json');
+
+@Injectable()
+export class CommonService {
+
+  constructor(
+    private http: HttpClient,
+    private commonDataService: CommonDataService,
+    private httpService: HttpService
+  ) { }
+
+  muleServiceBody = {
+    guideone_token: 'aveniocnicoieci',
+    agent_name: 'aniweoe687',
+    agency_id: 'abcueic87',
+    edge_requestpath: '',
+    body: {}
+  };
+  objectBody = {
+    id: '17',
+    method: '',
+    params: [],
+    jsonrpc: '2.0'
+  };
+  queryParam = '?hard_refresh=false';
+  submissionNumber: any;
+  submissionResp: any;
+
+  validateAllFormFields(form) {
+    Object.keys(form.controls).forEach(field => {
+      const control = form.get(field);
+      control.markAsTouched({ onlySelf: true });
+    });
+  }
+
+  clean(obj) {
+    for (const propName in obj) {
+      if (obj[propName] === null || obj[propName] === undefined || obj[propName] === '') {
+        delete obj[propName];
+      }
+    }
+    return obj;
+  }
+
+  getQuoteValidations(url) {
+    return this.httpService.get(url, '', true).map((response) => {
+      return response;
+    });
+  }
+
+  setSubmissionNumber(response) {
+    this.submissionNumber = response;
+  }
+
+  commonMuleEdgeWrapper(method, requestPath, object, isDependent = false, loadertext?: string) {
+    this.objectBody.method = method;
+    if (object instanceof Array) {
+      this.objectBody.params = object;
+    } else {
+      this.objectBody.params = [object];
+    }
+    this.muleServiceBody.body = this.objectBody;
+    this.muleServiceBody.edge_requestpath = requestPath;
+    return this.httpService.post('edgewrapper', this.muleServiceBody, isDependent, '', loadertext)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  commonEdgeWrapper(method, requestPath, object, isDependent = false) {
+    this.objectBody.method = method;
+    if (object instanceof Array) {
+      this.objectBody.params = object;
+    } else {
+      this.objectBody.params = [object];
+    }
+    return this.httpService.post(requestPath, this.objectBody, isDependent, 'edge')
+      .map((response) => {
+        return response;
+      });
+  }
+
+  enableDisableLeftNavs(routeLink) {
+    for (let i = 0; i < this.commonDataService.navData.length; i++) {
+      if (this.commonDataService.navData[i].isChild && this.commonDataService.navData[i].isCompleted) {
+        this.commonDataService.navData[this.commonDataService.navData[i].parentId - 1].isActive = true;
+        this.commonDataService.navData[i].isActive = false;
+      } else {
+        this.commonDataService.navData[i].isActive = false;
+      }
+      if ('/' + this.commonDataService.navData[i].route === routeLink) {
+        if (routeLink === '/bop/submission/locations' || routeLink === '/bop/submission/buildings') {
+          if (this.commonDataService.navData[i].locationNo === this.commonDataService.activeLocation) {
+            this.commonDataService.navData[i].isActive = true;
+            this.commonDataService.navData = this.loadAllLeftNavs(this.commonDataService.navData, i);
+          }
+        } else {
+          this.commonDataService.navData[i].isActive = true;
+          this.commonDataService.navData = this.loadAllLeftNavs(this.commonDataService.navData, i);
+        }
+        if (this.commonDataService.navData[i].parentId) {
+          if (this.commonDataService.navData[i].parentId > 0) {
+            for (let j = 0; j < this.commonDataService.navData.length; j++) {
+              if (this.commonDataService.navData[j].id === this.commonDataService.navData[i].parentId) {
+                this.commonDataService.navData[j].isActive = true;
+                this.commonDataService.navData[j].isCompleted = false;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  loadAllLeftNavs(data, index) {
+    for (let i = 0; i < index; i++) {
+      data[i].isCompleted = true;
+      if (data[index].parentId < data[i].parentId) {
+        data[i].isCompleted = true;
+      }
+    }
+    return data;
+  }
+
+  metaDataServiceCalls(url, method = '', body = {}, isDependent = false) {
+    if (body instanceof Array) {
+      this.objectBody.params = body;
+    } else {
+      this.objectBody.params = [body];
+    }
+    this.objectBody.method = method;
+    this.muleServiceBody.body = this.objectBody;
+    if (body === {}) {
+      delete this.muleServiceBody.body;
+    }
+    delete this.muleServiceBody.edge_requestpath;
+    return this.httpService.post('cache/' + url + this.queryParam, this.muleServiceBody, isDependent)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  createAccount(object: object, isDependent = false, loaderText?: string) {
+    return this.commonMuleEdgeWrapper('getOrCreateCommercialAccount', 'gateway/account', this.clean(object), isDependent, loaderText);
+  }
+
+  getSecondaryClassifications(object: object) {
+    return this.commonMuleEdgeWrapper('getAdditionalPropertyCodes', 'propertycode/propertycode', object);
+  }
+
+  createSubmission(object: object, isDependent = false) {
+    return this.commonMuleEdgeWrapper('createNewCommercialSubmission', 'gateway/submission', object, isDependent);
+  }
+
+  syncAccountInfo(object, isDependent = false) {
+    return this.commonMuleEdgeWrapper('syncAccount', 'gateway/account', object, isDependent);
+  }
+
+  updateSubmission(object, isDependent = false, loadertext?: string) {
+    return this.commonMuleEdgeWrapper('updateDraftSubmission', 'quote/quote', object, isDependent, loadertext);
+  }
+
+  checkDuplicateFEIN(object) {
+    return this.commonMuleEdgeWrapper('isFEINPresent', 'gateway/account', object);
+  }
+
+  getAccountClearanceInfo(body, isDependent = false) {
+    const acctURL = this.httpService.getBaseURLDetails().split('engageportalservices/v1/')[0] + 'accountMaintenance/v1/accountClearance';
+    return this.httpService.commonPost(acctURL, body, isDependent)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  accountLookUpSearch(body, isDependent = false) {
+    const acctURL = this.httpService.getBaseURLDetails().split('engageportalservices/v1/')[0] + 'accountMaintenance/v1/accountLookup';
+    return this.httpService.commonPost(acctURL, body, isDependent)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  getAccountContacts(object: object, isDependent = false) {
+    return this.commonMuleEdgeWrapper('getMainAccountContacts', 'gateway/contact', object, isDependent);
+  }
+
+  retrieveSubmission(object: object, isDependent = false, loaderText?: string) {
+    return this.commonMuleEdgeWrapper('retrieve', 'quote/quote', object, isDependent, loaderText);
+  }
+
+  retrieveClassifications(body: object) {
+    return this.httpService.post('propertycode/propertycode', body, false, 'edge')
+      .map((response) => {
+        return response;
+      });
+  }
+
+  retrieveEligibilityQuestions(body) {
+    this.objectBody.method = 'retrieveAppetiteCheckQuestions';
+    this.objectBody.params = body;
+    this.muleServiceBody.body = this.objectBody;
+    this.muleServiceBody.edge_requestpath = 'quote/quote';
+    return this.httpService.post('edgewrapper', this.muleServiceBody)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  correctAddressLookup(value, isDependent = false, showErrorMessage = true) {
+    const acctURL = this.httpService.getBaseURLDetails().split('engageportalservices/v1/')[0] + 'addressStandardization/v1/standardize';
+    return this.httpService.commonPost(acctURL, value, isDependent, showErrorMessage)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  getAvailableProducts(body, isDependent = false) {
+    const URL = this.httpService.getBaseURLDetails() + 'engageProducts';
+    return this.httpService.commonPost(URL, body, isDependent);
+  }
+
+  saveBuildings(object) {
+    return this.commonMuleEdgeWrapper('addBuilding', 'quote/bp7coverables', object, false);
+  }
+
+  updateBuildings(object) {
+    return this.commonMuleEdgeWrapper('updateBuilding', 'quote/bp7coverables', object, false);
+  }
+
+  saveBuildingsClass(object) {
+    return this.commonMuleEdgeWrapper('addClassification', 'quote/bp7coverables', object, false);
+  }
+
+  updateBuildingsClass(object) {
+    return this.commonMuleEdgeWrapper('updateClassification', 'quote/bp7coverables', object, false);
+  }
+
+  retrieveAppetiteQuestions(appetiteId) {
+    const body = {};
+    const URL = this.httpService.getBaseURLDetails() + 'appetitequestion?id=' + appetiteId;
+    return this.httpService.commonPost(URL, body, false);
+  }
+
+  getPropertyType() {
+    const URL = this.httpService.getBaseURLDetails() + 'cache/propertytype';
+    delete this.muleServiceBody.body;
+    delete this.muleServiceBody.edge_requestpath;
+    return this.httpService.commonPost(URL, this.muleServiceBody)
+      .map((response) => {
+        return response;
+      });
+  }
+
+  saveANInsured(object) {
+    return this.commonMuleEdgeWrapper('addPolicyNamedInsured', 'policy/policyContactRole', object, false);
+  }
+  updateANInsured(object) {
+    return this.commonMuleEdgeWrapper('updatePolicyNamedInsured', 'policy/policyContactRole', object, false);
+  }
+
+  saveAndQuote(quoteData: QuoteData) {
+    const loaderText = 'Generating your quote...';
+    const clonedQuoteData: QuoteData = _.cloneDeep(quoteData);
+    this.resetQuoteData(clonedQuoteData);
+    return this.commonMuleEdgeWrapper('saveAndQuote', 'quote/quote', clonedQuoteData, false, loaderText);
+  }
+
+  resetQuoteData(quoteData: QuoteData) {
+    if (quoteData.baseData.productCode === Constants.BP7ProductCode) {
+      const lobData = (quoteData.lobData as BOPLobData).bP7BusinessOwners;
+      if (lobData) {
+        delete lobData.coverages;
+        delete lobData.preQualQuestionSets;
+        delete lobData.appetiteQuestions;
+        delete lobData.lineUWQuestions;
+        lobData.coverables.locations.forEach((location: Location) => {
+          if (location) {
+            delete location.coverages;
+            delete location.locationUWQuestions;
+            this.resetBP7BuildingCoverages(location.buildings);
+          }
+        });
+      }
+    }
+  }
+
+  resetBP7BuildingCoverages(buildings: Building[]) {
+    if (buildings && buildings.length) {
+      buildings.forEach((building: Building) => {
+        if (building) {
+          delete building.coverages;
+          this.resetBP7ClassificationCoverages(building.classifications);
+        }
+      });
+    }
+  }
+
+  resetBP7ClassificationCoverages(classifications: Classification[]) {
+    if (classifications && classifications.length) {
+      classifications.forEach((classification: Classification) => {
+        if (classification) {
+          delete classification.coverages;
+        }
+      });
+    }
+  }
+}

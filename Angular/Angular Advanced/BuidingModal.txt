@@ -1,0 +1,124 @@
+import { Component, OnInit , Output, EventEmitter , ViewChild, Input } from '@angular/core';
+import { FormBuilder, FormGroup, FormControl, Validators, FormArray } from '@angular/forms';
+import { BOPLobDataService } from '../../../services/bop-lob-data.service';
+import { CommonDataService } from '../../../../../common/services/common.data.service';
+import { ModalComponent } from '../../../../../common/components/modal-popup/modal-popup.component';
+import * as _ from 'underscore';
+import { Classification } from '../../../interface/bop-lob-data';
+import { CommonService } from '../../../../../common/services/common.service';
+import { BuildingService } from '../../../services/buildings.service';
+import { SubmissionDataService } from '../../../services/submission-data.service';
+import { QuoteData } from '../../../../../common/interface/submission';
+import { Subject } from 'rxjs/Subject';
+
+
+
+@Component({
+  selector: 'app-building-modal',
+  templateUrl: './building-modal.component.html',
+  styleUrls: ['./building-modal.component.scss']
+})
+export class BuildingModalComponent implements OnInit {
+  currentLocation;
+  deleteBuildingIndex;
+  deleteClassificationLocationIndex;
+  isOnlyBuilding: Boolean = false;
+  isOnlyClassification: Boolean = false;
+  onClose = new Subject<Boolean>();
+  @Input() propertyType;
+  @Input() buildingsPageForm: FormGroup;
+  @Output() nextValid = new EventEmitter<Boolean>();
+  @ViewChild('deleteConfirmationModal') deleteConfirmationModal: ModalComponent;
+  @ViewChild('deleteConfirmationModalClass') deleteConfirmationModalClass: ModalComponent;
+  constructor(
+    private commonDataService: CommonDataService,
+    private bopLobDataService: BOPLobDataService,
+    private commonService: CommonService,
+    private buildingService: BuildingService,
+    private submissionDataService: SubmissionDataService
+  ) { }
+
+  ngOnInit() {
+    this.submissionDataService.retrieveSubmissionData().subscribe((response: QuoteData) => {
+      this.submissionDataService.finalSubmission = response;
+      this.bopLobDataService.setModel(response);
+    this.currentLocation =
+        this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[+sessionStorage.getItem('activeLocation') - 1];
+    });
+  }
+
+
+  confirmDelete() {
+    this.deleteConfirmationModal.hide();
+    const control = <FormArray>this.buildingsPageForm.controls['buildings'];
+    const formControl = <FormArray>control.controls[this.deleteBuildingIndex];
+    if (formControl.get('isSaved').value === true) {
+      this.lobbuildingUpdateonDelete();
+    }
+    control.removeAt(this.deleteBuildingIndex);
+    this.onClose.next(true);
+  }
+
+  discardDelete() {
+    this.deleteConfirmationModal.hide();
+    this.onClose.next(false);
+  }
+
+
+  confirmClassDelete() {
+    this.deleteConfirmationModalClass.hide();
+    const buildingscontrol = <FormArray>this.buildingsPageForm.controls['buildings'];
+    const controlform = <FormArray>buildingscontrol.controls[this.deleteBuildingIndex].get('classificationsPageForm');
+    const control = controlform.controls[this.deleteClassificationLocationIndex];
+    if (control.get('isClassSaved').value === true) {
+      this.updateLobDataServiceforClassification();
+    }
+    controlform.removeAt(this.deleteClassificationLocationIndex);
+    this.nextValid.emit(true);
+  }
+
+
+  lobbuildingUpdateonDelete() {
+    const building = this.currentLocation.buildings[this.deleteBuildingIndex];
+      this.currentLocation.buildings = _.without(this.currentLocation.buildings, building);
+      this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1] =
+        this.currentLocation;
+  }
+
+  updateLobDataServiceforClassification() {
+    const classification = this.currentLocation.buildings[this.deleteBuildingIndex].
+    classifications[this.deleteClassificationLocationIndex];
+  this.currentLocation.buildings[this.deleteBuildingIndex].
+    classifications = _.without(this.currentLocation.buildings[this.deleteBuildingIndex].
+      classifications, classification);
+  this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1] =
+    this.currentLocation;
+  }
+
+
+  deleteBuilding(index) {
+    this.isOnlyBuilding = false;
+    const buildingscontrol = <FormArray>this.buildingsPageForm.controls['buildings'];
+    if (buildingscontrol.controls.length === 1) {
+      this.isOnlyBuilding = true;
+    }
+    this.deleteBuildingIndex = index;
+    this.deleteConfirmationModal.show();
+    return this.onClose;
+  }
+
+  deleteClassification(classificationIndex, buildingIndex) {
+    this.isOnlyClassification = false;
+    const buildingscontrol = <FormArray>this.buildingsPageForm.controls['buildings'];
+    buildingscontrol.controls[buildingIndex].get('addClassificationCheck').setValue(false);
+    const control = <FormArray>buildingscontrol.controls[buildingIndex].get('classificationsPageForm');
+    if (control.length === 1) {
+      this.isOnlyClassification = true;
+    }
+    this.deleteBuildingIndex = buildingIndex;
+    this.deleteClassificationLocationIndex = classificationIndex;
+    this.deleteConfirmationModalClass.show();
+    return this.onClose;
+  }
+
+}

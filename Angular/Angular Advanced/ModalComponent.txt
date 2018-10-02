@@ -1,0 +1,36 @@
+import {Component, ViewEncapsulation, EventEmitter, Output} from '@angular/core';
+
+@Component({
+  selector: 'app-modal',
+  templateUrl: './modal-popup.component.html',
+  styleUrls: ['./modal-popup.component.scss'],
+  encapsulation: ViewEncapsulation.Emulated
+})
+export class ModalComponent {
+
+  public visible = false;
+  public visibleAnimate = false;
+  public blue = 'blue';
+  isClose = true;
+  @Output() hideModal = new EventEmitter();
+  constructor() {}
+
+  public show(closeStatus = true): void {
+    this.isClose = closeStatus;
+    this.visible = true;
+    this.visibleAnimate = true;
+  }
+
+  public hide(): void {
+    this.visibleAnimate = false;
+    this.visible = false;
+    this.hideModal.next(true);
+  }
+
+  public onContainerClicked(event: MouseEvent): void {
+    if ((<HTMLElement>event.target).classList.contains('modal')) {
+      event.preventDefault();
+    }
+  }
+
+}

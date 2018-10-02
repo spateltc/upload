@@ -1,0 +1,81 @@
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs/Observable';
+import { Subject } from 'rxjs/Subject';
+import 'rxjs/add/observable/of';
+import { HttpResponse, HttpErrorResponse } from '@angular/common/http';
+import { QuoteData } from '../interface/submission';
+
+export class PortalHttpResponse extends HttpResponse<PortalHttpResponse> {
+  result: PortalResponse;
+}
+
+export interface PortalResponse {
+  readonly warnings?: string[];
+  responseJson?: object;
+}
+
+@Injectable()
+export class HttpUtilityService {
+
+  displayError = new Subject<HttpErrorResponse>();
+  displayWarning = new Subject<string[]>();
+
+  showErrors = new Subject<string[]>();
+  showUIOnlyErrors = new Subject<string[]>();
+  showWarnings = new Subject<string[]>();
+  showUIOnlyWarnings = new Subject<string[]>();
+  resetErrorsNWarnings = new Subject<{}>();
+  resetUIOnlyErrorsWarnings = new Subject<{}>();
+
+  displayErrorCalled = this.displayError.asObservable();
+  displayWarningCalled = this.displayWarning.asObservable();
+
+  showErrorsTriggered = this.showErrors.asObservable();
+  showWarningsTriggered = this.showWarnings.asObservable();
+  showUIOnlyErrorsTriggered = this.showUIOnlyErrors.asObservable();
+  showUIOnlyWarningsTriggered = this.showUIOnlyWarnings.asObservable();
+  resetErrorsWarningsTriggered = this.resetErrorsNWarnings.asObservable();
+  resetUIOnlyErrorsWarningsTriggered = this.resetUIOnlyErrorsWarnings.asObservable();
+
+  constructor() { }
+
+  parseResponse(response: PortalHttpResponse) {
+    if (response.result && response.result.warnings) {
+       const responseJson = new PortalHttpResponse();
+       responseJson.result = response.result.responseJson;
+       this.showWarnings.next(response.result.warnings);
+       return responseJson;
+    }
+    return response;
+  }
+
+  handleErrorResponse(response: HttpErrorResponse) {
+     if (response.error) {
+      this.displayError.next(response.error);
+     }
+  }
+
+  displayErrors(errorList) {
+    this.showErrors.next(errorList);
+  }
+
+  displayUIOnlyErrors(errorsList) {
+    this.showUIOnlyErrors.next(errorsList);
+  }
+
+  displayWarnings(warningList) {
+    this.showWarnings.next(warningList);
+  }
+
+  displayUIOnlyWarnings(warningsList) {
+    this.showUIOnlyWarnings.next(warningsList);
+  }
+
+  resetErrorsWarnings() {
+    this.resetErrorsNWarnings.next();
+  }
+
+  resetUIErrorsWarnings() {
+    this.resetUIOnlyErrorsWarnings.next();
+  }
+}

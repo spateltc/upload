@@ -1,0 +1,782 @@
+import { Component, OnInit, Output, EventEmitter, ViewEncapsulation, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
+import { Router } from '@angular/router';
+import { FormBuilder, FormGroup, FormControl, Validators, FormArray, AbstractControl } from '@angular/forms';
+import { Observable } from 'rxjs/Observable';
+import { HttpService } from '../../../../common/services/http.service';
+import { CommonService } from '../../../../common/services/common.service';
+import { CommonDataService } from '../../../../common/services/common.data.service';
+import { SubmissionDataService } from '../../services/submission-data.service';
+import { CoverageTermComponent } from '../../../../common/components/coverage-term/coverage-term.component';
+import { BackConfirmationModalComponent } from '../../../../common/components/back-confirmation-modal/back-confirmation-modal.component';
+import { ModalComponent } from '../../../../common/components/modal-popup/modal-popup.component';
+import { BOPLobDataService } from '../../services/bop-lob-data.service';
+import { Building, BP7Coverages, BOPLobCoverages, Location, BOPLobData } from '../../interface/bop-lob-data';
+import { QuoteData } from '../../../../common/interface/submission';
+import { Classification } from '../../interface/bop-lob-data';
+import { ClassCode } from '../../../../common/interface/submission';
+import { BuildingModalComponent } from './building-modal/building-modal.component';
+import { ClassificationComponent } from './classification/classification.component';
+import { BuildingService } from '../../services/buildings.service';
+import { Coverage, CoverageCategory } from '../../../../common/interface/coverage';
+import { BOPCoveragesValidatorService } from '../../services/bop-coverages-validator.service';
+import * as _ from 'lodash';
+import * as __ from 'underscore';
+import { Constants } from '../../services/constants';
+import { RegxPatternService } from '../../../../common/services/regx-pattern.service';
+import { UWQuestionsUtilService } from '../../../../common/components/uw-questions/uw-questions-util';
+import { HttpUtilityService } from '../../../../common/services/http-utility.service';
+
+@Component({
+  selector: 'app-buildings',
+  templateUrl: './buildings.component.html',
+  styleUrls: ['./buildings.component.scss'],
+  encapsulation: ViewEncapsulation.Emulated
+})
+export class BuildingsComponent implements OnInit, OnDestroy {
+  invalidCoverages = [];
+  @ViewChild(BackConfirmationModalComponent) backConfirmationModalComponent: BackConfirmationModalComponent;
+  @ViewChild(BuildingModalComponent) deletebuildingModal: BuildingModalComponent;
+  @ViewChild(ClassificationComponent) classifications: ClassificationComponent;
+  deleteLocationIndex = 0;
+  currentLocation;
+  buildingsPageForm: FormGroup;
+  buildingSave = false;
+  show = true;
+  isValidYear = true;
+  isOnlyBuilding = false;
+  isExposureVisible = false;
+  primaryClassType;
+  primaryClassCode;
+  radio = false;
+  isClassFormValid = true;
+  backupBuilding: Building[];
+  percentageOwnerOccupied = [];
+  option: any;
+  isNext = false;
+  disableAddClassificationButton = false;
+  dependentBuildingList = [
+    'yearBuilt', 'numberOfStories', 'totalAreaExcludingBasement', 'buildingObject', 'roofSlope', 'roofShape',
+    'roofType', 'yearOfLastRoofReplacement', 'yearHeatingUpdated', 'yearWiringUpdated', 'yearPlumbingUpdated'
+  ];
+  locations = [];
+  dependentCoverages: {};
+  noClassCodes: boolean;
+  showMessage: boolean;
+  basicBuildingFields = ['constructionType', 'buildingCoverageSelected'];
+  squareFootageDisplay: boolean;
+  defaultPctOwnerOccupied: string;
+
+  get buildings(): FormArray {
+    return <FormArray>this.buildingsPageForm.get('buildings');
+  }
+  constructor(
+    private router: Router,
+    private httpService: HttpService,
+    private formBuilder: FormBuilder,
+    private commonService: CommonService,
+    private commonDataService: CommonDataService,
+    private submissionDataService: SubmissionDataService,
+    private bopLobDataService: BOPLobDataService,
+    private buildingService: BuildingService,
+    private bopCovValidatorService: BOPCoveragesValidatorService,
+    private httpUtilityService: HttpUtilityService,
+    private regxPatterns: RegxPatternService,
+    private uwQuestionsUtil: UWQuestionsUtilService
+  ) { }
+
+
+  filterOptions() {
+    this.submissionDataService.retrieveMetaData().subscribe((response) => {
+      this.submissionDataService.bopMetaData = response;
+      this.percentageOwnerOccupied = this.submissionDataService.bopMetaData.percentageOwnerOccupied;
+      this.percentageOwnerOccupied = _.filter(this.percentageOwnerOccupied, (item) => {
+        return item.code !== 'NotApplicable';
+      });
+      const classification = _.find(this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes, {
+        isPrimary : true
+      });
+      if (classification && classification.classification === 'Habitational') {
+        this.defaultPctOwnerOccupied = '10orless';
+        this.percentageOwnerOccupied = this.filterPctOwnerOccupied(this.defaultPctOwnerOccupied);
+      } else if (classification && classification.code === '01960') {
+        this.defaultPctOwnerOccupied = 'Over10';
+        this.percentageOwnerOccupied = this.filterPctOwnerOccupied(this.defaultPctOwnerOccupied);
+      }
+    });
+  }
+
+  filterPctOwnerOccupied(code: string) {
+    return _.filter(this.percentageOwnerOccupied, (item) => {
+      return item.code === code;
+    });
+  }
+
+  deleteBuilding(buildingIndex) {
+    this.deletebuildingModal.deleteBuilding(buildingIndex)
+      .subscribe((result) => {
+        if (!!result) {
+          this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes.map((classCode) => {
+            if (!!classCode.isSaved && !!classCode.isSaved.length) {
+              classCode.isSaved.map((_index, arrInd) => {
+                if (_index > buildingIndex) {
+                  _index -= 1;
+                } else if (_index === buildingIndex) {
+                  classCode.isSaved.splice(arrInd, 1);
+                }
+              });
+            }
+          });
+        }
+      });
+      this.buildingsPageForm.markAsDirty();
+  }
+  ngOnInit() {
+    if (this.commonDataService.invalidCoverages.length > 0) {
+      this.invalidCoverages = this.commonDataService.invalidCoverages;
+    }
+    this.buildFormControl();
+    this.submissionDataService.retrieveSubmissionData().subscribe((response: QuoteData) => {
+      this.submissionDataService.finalSubmission = response;
+      this.bopLobDataService.setModel(response);
+      this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations =
+      _.sortBy(this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations, 'publicID');
+      this.locations = this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations;
+      if (_.isUndefined(this.commonDataService.activeLocation)) {
+        this.commonDataService.activeLocation = +sessionStorage.getItem('activeLocation');
+        this.setInitialData();
+      }
+      const classifications = this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes;
+      _.forEach(classifications, (item) => {
+        if (item.isPrimary) {
+          this.primaryClassType = item.classificationTypeCode;
+          this.primaryClassCode = item.code;
+          if (item.classification === 'Contractor' || item.classification === 'Restaurant') {
+            this.isExposureVisible = true;
+            return;
+          }
+        }
+      });
+      this.currentLocation = this.locations[this.commonDataService.activeLocation - 1];
+      if (this.currentLocation.buildings.length > 0) {
+        this.backupBuilding = _.cloneDeep(this.currentLocation.buildings);
+        this.buildingService.storeBuilding(this.backupBuilding);
+        this.setBuildingsInfo();
+      } else {
+        this.addBuilding();
+      }
+      this.onChanges();
+      this.defaultPctOwnerOccupied = '';
+      this.filterOptions();
+    });
+    this.showMessage = false;
+  }
+
+  ngOnDestroy() {
+     if (!this.isNext) {
+      this.currentLocation.buildings = this.buildingService.getstoredBuilding();
+    }
+    this.httpUtilityService.resetErrorsWarnings();
+    this.httpUtilityService.resetUIErrorsWarnings();
+  }
+
+  setInitialData() {
+    const navIndex = this.commonDataService.navData.indexOf((_.filter(this.commonDataService.navData, { id: 4 }))[0]) + 1;
+    const navBeforeIndex = this.commonDataService.navData.indexOf((_.filter(this.commonDataService.navData,
+      { text: 'Policy Info' }))[0]);
+    const navAfterIndex = this.commonDataService.navData.indexOf((_.filter(this.commonDataService.navData,
+      { text: 'Blankets & Addt\'l Insured' }))[0]);
+    this.commonDataService.navData.splice(navBeforeIndex + 1, navAfterIndex - (navBeforeIndex + 1));
+    for (let i = 0; i < this.locations.length; i++) {
+      this.commonDataService.navData.splice(navIndex + (i * 2), 0,
+        {
+          text: 'Location ' + (i + 1), id: 5, parentId: 2, route: 'bop/submission/locations', isCompleted: false,
+          isActive: false, isChild: true, hasChild: false, locationNo: (i + 1)
+        },
+        {
+          text: 'Buildings', id: 6, parentId: 2, route: 'bop/submission/buildings',
+          isCompleted: false, isActive: false, isChild: true, hasChild: false, locationNo: (i + 1)
+        });
+    }
+    for (let i = 0; i < this.commonDataService.navData.length; i++) {
+      this.commonDataService.navData[i].id = i + 1;
+    }
+    if (this.locations.length === 1) {
+      this.commonDataService.navData[4].text = 'Location';
+    }
+    this.commonService.enableDisableLeftNavs('/bop/submission/buildings');
+  }
+
+  setBuildingsInfo() {
+    this.currentLocation.buildings = _.sortBy(this.currentLocation.buildings, 'publicID');
+    _.forEach(this.currentLocation.buildings, (building: Building, key) => {
+      const classificationFlag =
+      (building.classifications.length === this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes.length);
+      this.buildings.push(this.buildBuildings(classificationFlag));
+      const index = this.buildings.length - 1;
+      const control = this.buildings.controls[index];
+      this.showSquareFootage(key);
+      control.get('constructionType').setValue(building.constructionType);
+      control.get('automaticControlSystem').setValue(building.automaticSprinklerSystem.toString());
+      control.get('sqFootageLeasedToOthrTenInd').setValue(building.sqFootageLeasedToOthrTenInd ?
+        building.sqFootageLeasedToOthrTenInd.toString() : '');
+      control.get('PercentageOwnerOccupied').setValue(building.percentageOwnerOccupied.toString());
+      control.get('exposure').setValue(this.isExposureVisible ? building.exposure : null);
+      control.get('isSaved').setValue(true);
+      this.handleBP7BuildingCoverage(building, control, true);
+    });
+  }
+
+  addClassifications(buildingIndex) {
+    if (!this.buildings.controls[buildingIndex].get('addClassificationCheck').value) {
+
+      const classCodes = Object.assign([], this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes);
+      const unselectedCount = classCodes.filter(item => !item.isSaved || item.isSaved.indexOf(buildingIndex) === -1).length;
+      const noClassCodes = unselectedCount === 0;
+
+      if (noClassCodes) {
+        this.showMessage = true;
+      } else {
+        this.showSquareFootage(buildingIndex);
+        this.showMessage = false;
+        const classifications = <FormArray>this.buildings.controls[buildingIndex].get('classificationsPageForm');
+        if (classifications.controls.length === 0) {
+          classifications.push(this.formBuilder.group({
+            'squareFootage': new FormControl(''),
+            'leasedTenants': new FormControl(''),
+            'classcode': new FormControl(this.primaryClassCode),
+            'isClassSaved': new FormControl(false),
+            'isSquareFootage': new FormControl(false),
+            'isEnable': new FormControl(true)
+          }));
+        } else {
+          this.classifications.addClassifications(buildingIndex);
+        }
+        this.disableClassifications(buildingIndex);
+        this.isClassFormValid = false;
+      }
+    }
+  }
+
+  disableClassifications(buildingIndex) {
+    const classificationsList = this.buildings.controls[buildingIndex].get('classificationsPageForm')['controls'];
+    let savedClassesCount = 0;
+    __.forEach(classificationsList, (item: AbstractControl) => {
+      if (item.get('isClassSaved').value) {
+        savedClassesCount = savedClassesCount + 1;
+      }
+    });
+    let flag = false;
+    if (classificationsList.length === this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes.length ||
+      savedClassesCount !== classificationsList.length - 1) {
+      flag = true;
+    } else {
+      flag = (savedClassesCount + 1 === classificationsList.length);
+    }
+    this.buildings.controls[buildingIndex].get('addClassificationCheck').setValue(flag);
+  }
+
+  buildFormControl() {
+    this.buildingsPageForm = this.formBuilder.group({
+      buildings: this.formBuilder.array([])
+    });
+  }
+
+  isDisabled(index) {
+    const control = <FormArray>this.buildingsPageForm.controls['buildings'];
+    const formControl = <FormArray>control.controls[index];
+    return formControl ? formControl.valid : false;
+  }
+
+  disableFinalSave() {
+    let isCoveragesAvailable = true;
+    const control = <FormArray>this.buildingsPageForm.controls['buildings'];
+    this.classFormValidTest(true);
+    _.forEach(control.controls, (item: any) => {
+      if (!item.controls['isSaved'].value) {
+        isCoveragesAvailable = false;
+      }
+    });
+    this.classFormValidTest(true);
+    if (this.isClassFormValid &&
+      (this.buildings.controls.length > 0 ? this.buildingsPageForm.valid ? isCoveragesAvailable ? true : false : false : false)) {
+      return true;
+    }
+  }
+
+  classFormValidTest(value) {
+    const buildingcontrol = <FormArray>this.buildingsPageForm.controls['buildings'];
+    let n = 0;
+    _.forEach(buildingcontrol.controls, (buildingitem: any, key1) => {
+      const classcontrol = <FormArray>buildingitem.controls['classificationsPageForm'];
+      _.forEach(classcontrol.controls, (classitem: any, key2) => {
+        if (classitem.get('isClassSaved').value === false) {
+          n = n + 1;
+        } else {
+          this.isClassFormValid = true;
+        }
+      });
+    });
+    if (n > 0) {
+      this.isClassFormValid = false;
+    }
+  }
+
+  addBuilding(): void {
+    this.squareFootageDisplay = false;
+    this.buildings.push(this.buildBuildings());
+    const index = this.buildings.length - 1;
+    const building = this.buildings.controls[index];
+    building.get('buildingCoverageSelected').setValue(false);
+    building.get('automaticControlSystem').setValue('false');
+    building.get('sqFootageLeasedToOthrTenInd').setValue('');
+    building.get('PercentageOwnerOccupied').setValue(this.defaultPctOwnerOccupied);
+    building.get('roofShape').setValue('unknown');
+    building.get('roofType').setValue('None');
+    building.get('roofSlope').setValue('unknown');
+    building.get('roofArea').setValue('Unknown');
+    building.get('isSaved').setValue(false);
+    building.get('exposure').setValidators(this.isExposureVisible ? [Validators.required] : null);
+    building.get('addClassificationCheck').setValue(false);
+    this.defaultBuildings(building, false);
+  }
+
+  checkYearRange(event, control, index) {
+    if (this.buildings.controls[index].get(control).value !== '') {
+      this.buildings.controls[index].get(control).setErrors(!event ? { 'incorrect': true } : null);
+    }
+  }
+
+  defaultBuiltYear(buildingIndex) {
+    const building = this.buildings.controls[buildingIndex];
+    if (building.get('yearBuilt').value) {
+      if (!building.get('YearHeatingUpdate').value) {
+        building.get('YearHeatingUpdate').setValue(building.get('yearBuilt').value);
+      }
+      if (!building.get('YearWiringUpdated').value) {
+        building.get('YearWiringUpdated').setValue(building.get('yearBuilt').value);
+      }
+      if (!building.get('YearPlumbingUpdated').value) {
+        building.get('YearPlumbingUpdated').setValue(building.get('yearBuilt').value);
+      }
+    }
+  }
+
+  buildBuildings(status: boolean = true): FormGroup {
+    return this.formBuilder.group({
+      'constructionType': new FormControl('', [Validators.required]),
+      'automaticControlSystem': new FormControl('', [Validators.required]),
+      'sqFootageLeasedToOthrTenInd': new FormControl(''),
+      'PercentageOwnerOccupied': new FormControl(this.defaultPctOwnerOccupied),
+      'yearBuilt': new FormControl(''),
+      'numberOfStories': new FormControl('', [Validators.pattern(this.regxPatterns.numberPattern)]),
+      'totalBuildingArea': new FormControl(''),
+      'roofType': new FormControl(''),
+      'RoofReplacementYear': new FormControl(''),
+      'roofArea': new FormControl(''),
+      'roofSlope': new FormControl(''),
+      'roofShape': new FormControl(''),
+      'YearWiringUpdated': new FormControl(''),
+      'YearPlumbingUpdated': new FormControl(''),
+      'YearHeatingUpdate': new FormControl(''),
+      'buildingCoverageSelected': new FormControl(''),
+      'exposure': new FormControl(''),
+      isSaved: new FormControl(''),
+      'classificationsPageForm': this.formBuilder.array([]),
+      addClassificationCheck: new FormControl(status)
+    });
+  }
+
+  getclassificationsPageForm(building) {
+    return building.controls.classificationsPageForm.controls;
+  }
+
+  pristineBasicData(index) {
+    const building: FormGroup = <FormGroup>this.buildings.controls[index];
+    _.forEach(this.basicBuildingFields, (field: string) => {
+      building.get(field).markAsPristine();
+    });
+  }
+
+  // Returns true if the basic building data is dirty, else returns false
+  isBasicBuildingDataDirty(index) {
+    const building: FormGroup = <FormGroup>this.buildings.controls[index];
+    let dataChanged: Boolean = false;
+    _.forEach(this.basicBuildingFields, (field: string) => {
+      const formControl = building.get(field);
+      if (formControl && formControl.dirty) {
+        dataChanged = true;
+        return;
+      }
+    });
+    return dataChanged;
+  }
+
+  isNewBuilding(index) {
+    const building: FormGroup = <FormGroup>this.buildings.controls[index];
+    return !building.get('isSaved').value;
+  }
+
+  // Resets coverages if basic building data gets changed
+  basicBuildingDataChanged(index) {
+    const building: FormGroup = <FormGroup>this.buildings.controls[index];
+
+    // Return if there are no buildings
+    if (_.isUndefined(this.currentLocation.buildings[index])) {
+      return;
+    }
+
+    // If basic data is dirty, remove coverages form control and delete the coverages object.
+    if (this.isBasicBuildingDataDirty(index)) {
+      building.removeControl('coverages');
+      delete this.currentLocation.buildings[index].coverages;
+    }
+  }
+
+  defaultBuildings(control: AbstractControl, isLoading = false) {
+    const isChecked = control.get('buildingCoverageSelected').value;
+    const dependentList = [
+      { field: 'yearBuilt', validations: [Validators.required, Validators.minLength(4)], value: '' },
+      { field: 'numberOfStories', validations: [Validators.required, Validators.pattern(this.regxPatterns.numberPattern)], value: '' },
+      { field: 'totalBuildingArea', validations: [Validators.required], value: '' },
+      { field: 'roofType', validations: [Validators.required], value: 'None' },
+      { field: 'roofShape', validations: [Validators.required], value: 'unknown' },
+      { field: 'roofSlope', validations: [Validators.required], value: 'unknown' },
+      { field: 'roofArea', validations: [], value: '' },
+      { field: 'RoofReplacementYear', validations: [Validators.required, Validators.minLength(4)], value: '' },
+      { field: 'YearWiringUpdated', validations: [Validators.minLength(4)], value: '' },
+      { field: 'YearPlumbingUpdated', validations: [Validators.minLength(4)], value: '' },
+      { field: 'YearHeatingUpdate', validations: [Validators.minLength(4)], value: '' },
+      { field: 'PercentageOwnerOccupied', validations: [Validators.required], value: this.defaultPctOwnerOccupied }
+    ];
+    _.forEach(dependentList, (item) => {
+      control.get(item.field).setValidators(isChecked ? item.validations : null);
+      control.get(item.field).setValue(isLoading ? control.get(item.field).value : item.value);
+      control.get(item.field).updateValueAndValidity();
+    });
+  }
+
+  saveFields(index) {
+    const building = this.buildings.controls[index];
+    let buildingObject = <Building>{};
+    buildingObject = this.getBuildingDetails(index, buildingObject);
+    if (building.get('isSaved').value) {
+      buildingObject['coverages'] = (<Location>this.currentLocation).buildings[index].coverages;
+    }
+    if (!this.isExposureVisible) {
+      delete buildingObject.exposure;
+    }
+    const body = [
+      sessionStorage.getItem('submission'),
+      this.currentLocation.publicID,
+      this.commonService.clean(buildingObject),
+      this.bopLobDataService.finalSubmission.sessionUUID
+    ];
+    if (building.get('isSaved').value) {
+      this.commonService.updateBuildings(body).subscribe((response) => {
+        this.updateBuildingInfo(index, response, true);
+      });
+    } else {
+      this.commonService.saveBuildings(body).subscribe((response) => {
+        this.updateBuildingInfo(index, response, false);
+      });
+    }
+    this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1]
+      = this.currentLocation;
+    this.pristineBasicData(index);
+    this.buildingsPageForm.markAsDirty();
+  }
+
+
+
+  findBySpecField(data, reqField, value, resField) {
+    const container = data;
+    for (let i = 0; i < container.length; i++) {
+      if (container[i][reqField] === value) {
+        return (container[i][resField]);
+      }
+    }
+    return '';
+  }
+
+  updateBuildingInfo(index, response, isSaved) {
+    this.buildingSave = false;
+    if (isSaved) {
+      this.currentLocation.buildings[index] = response.result;
+    } else {
+      this.currentLocation.buildings.push(response.result);
+      this.addClassifications(index);
+    }
+    this.backupBuilding = _.cloneDeep(this.currentLocation.buildings);
+    this.buildingService.storeBuilding(this.backupBuilding);
+    this.buildings.controls[index].get('isSaved').setValue(true);
+    this.disableFinalSave();
+  }
+
+  goBack() {
+     this.currentLocation.buildings = this.buildingService.getstoredBuilding();
+    this.router.navigate(['bop/submission/locations']);
+  }
+
+  onChanges(): void {
+    this.buildingsPageForm.valueChanges.subscribe(val => {
+      if (this.buildingsPageForm.dirty) {
+        this.submissionDataService.formControlChangeStatus = true;
+      }
+    });
+  }
+
+  backConfirmationModal() {
+    this.commonDataService.nextClicked = false;
+    if (this.buildingsPageForm.dirty) {
+      this.backConfirmationModalComponent.showConfirmationModal();
+    } else {
+      this.goBack();
+    }
+  }
+
+  get bopSubmission(): QuoteData {
+    return this.bopLobDataService._finalSubmission;
+  }
+
+  onCoveragesChange($event, index) {
+    if ($event) {
+      const building: Building = (<Location>this.currentLocation).buildings[index];
+      building.coverages = <BP7Coverages>$event;
+      this.handleBP7BuildingCoverage(building, this.buildings.controls[index], true);
+    }
+  }
+
+  handleBP7BuildingCoverage(building: Building, control: AbstractControl, reset: boolean) {
+    const category = this.findBuildingStdGrp(building.coverages.includedCoverages);
+    // Considering BP7Building coverage will always be a frequently edited coverage
+    const coverage = this.findBuildingCoverage(category.categorizedCoverages.frequentlyEdited);
+    if (coverage.selected) {
+      this.setBuildingCoverageDetails(control, building, reset);
+    } else {
+      delete building.yearBuilt;
+      delete building.numberOfStories;
+      delete building.totalBuildingArea;
+      delete building.yearOfLastRoofReplacement;
+      delete building.yearHeatingUpdated;
+      delete building.yearPlumbingUpdated;
+      delete building.yearWiringUpdated;
+      delete building.roofArea;
+      delete building.roofShape;
+      delete building.roofType;
+      delete building.roofSlope;
+      delete building.totalAreaExcludingBasement;
+      this.resetBuildingCoverageDetails(control);
+    }
+  }
+
+  findBuildingStdGrp(categories: CoverageCategory[]): CoverageCategory {
+    return _.find(categories, { 'coverageCategoryCode': 'BP7BuildingStdGrp' });
+  }
+
+  findBuildingCoverage(coverages: Coverage[]): Coverage {
+    return _.find(coverages, { 'publicID': 'BP7Structure' });
+  }
+
+  // sync call for additional coverages
+  onCoverageInclusion(index) {
+    const building: Building = (<Location>this.currentLocation).buildings[index];
+    this.bopLobDataService.syncBP7BuildingClauses(this.bopSubmission.quoteID, this.bopSubmission.sessionUUID,
+      building.publicID, building.coverages).subscribe((response) => {
+        (<Location>this.currentLocation).buildings[index].coverages = (<BP7Coverages>response.result);
+      });
+  }
+
+  hideClassCode(event) {
+    this.showMessage = event;
+  }
+
+  proceedToNext() {
+    this.commonDataService.nextClicked = true;
+    if (this.buildingsPageForm.dirty || this.submissionDataService.currentFormPristineStatus) {
+      this.bopLobDataService.lobData.bP7BusinessOwners.coverages.sync = true;
+      _.forEach(this.currentLocation.buildings, (building: Building, index: number) => {
+        building = this.getBuildingDetails(index, building);
+      });
+      this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1]
+        = this.currentLocation;
+      const clonedSubmission: QuoteData = _.cloneDeep(this.bopLobDataService.finalSubmission);
+      (clonedSubmission.lobData as BOPLobData).bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1]
+        .areCoveragesSelected = true;
+      (clonedSubmission.lobData as BOPLobData).bP7BusinessOwners.coverables.locations[this.commonDataService.activeLocation - 1]
+        .buildingsUpdated = true;
+      this.commonService.updateSubmission(clonedSubmission).subscribe((response) => {
+        this.submissionDataService.finalSubmission = response.result;
+        this.bopLobDataService.setModel(response.result);
+        this.isNext = true;
+        this.bopCovValidatorService.parseResponse(this.submissionDataService.finalSubmission).subscribe((dependentCoverages) => {
+          this.dependentCoverages = dependentCoverages;
+          this.invalidCoverages = this.bopCovValidatorService.getCoverageNavigation(2);
+          this.commonDataService.invalidCoverages = this.invalidCoverages;
+          if (this.invalidCoverages.length === 0) {
+            this.commonDataService.invalidCoverages = [];
+            if ((this.commonDataService.activeLocation) < this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations.length) {
+              this.commonDataService.activeLocation++;
+              sessionStorage.setItem('activeLocation', '' + this.commonDataService.activeLocation);
+              this.router.navigate(['bop/submission/locations']);
+            } else {
+              this.router.navigate(['bop/submission/blankets']);
+            }
+          } else {
+            this.router.navigate(['bop/submission/buildings' + '1'])
+              .then(() => { this.router.navigate(['bop/submission/buildings']); });
+          }
+        });
+      });
+    } else {
+      if ((this.commonDataService.activeLocation) < this.bopLobDataService.lobData.bP7BusinessOwners.coverables.locations.length) {
+        this.commonDataService.activeLocation++;
+        sessionStorage.setItem('activeLocation', '' + this.commonDataService.activeLocation);
+        this.router.navigate(['bop/submission/locations']);
+      } else {
+        this.router.navigate(['bop/submission/blankets']);
+      }
+    }
+  }
+
+  showSquareFootage(buildingIndex) {
+    const building = this.buildings.controls[buildingIndex];
+    const classCodeList = ['63641', '63621', '63661', '63711', '63771', '63791', '63821', '63841',
+      '63861', '63881', '63931', '63991', '64021', '64071', '64151', '64131', '64171', '64191', '65161'];
+
+    _.forEach(this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes, (item: ClassCode) => {
+      if (classCodeList.indexOf(item.code) > -1) {
+        this.squareFootageDisplay = true;
+        building.get('sqFootageLeasedToOthrTenInd').setValidators(this.squareFootageDisplay ? [Validators.required] : null);
+      } else {
+        this.squareFootageDisplay = false;
+        building.get('sqFootageLeasedToOthrTenInd').setValidators(null);
+      }
+    });
+  }
+
+  setBuildingCoverageDetails(control: AbstractControl, building: Building, reset: boolean) {
+    control.get('buildingCoverageSelected').setValue(true);
+    const dependentList = [
+      { field: 'yearBuilt', value: building.yearBuilt },
+      { field: 'numberOfStories', value: building.numberOfStories },
+      { field: 'totalBuildingArea', value: building.totalAreaExcludingBasement },
+      { field: 'roofType', value: building.roofType },
+      { field: 'roofShape', value: building.roofShape },
+      { field: 'roofSlope', value: building.roofSlope },
+      { field: 'roofArea', value: building.roofArea },
+      { field: 'RoofReplacementYear', value: building.yearOfLastRoofReplacement },
+      { field: 'YearWiringUpdated', value: building.yearWiringUpdated },
+      { field: 'YearPlumbingUpdated', value: building.yearPlumbingUpdated },
+      { field: 'YearHeatingUpdate', value: building.yearHeatingUpdated }
+    ];
+    _.forEach(dependentList, (item) => {
+      if (item.value) {
+        control.get(item.field).setValue(item.value);
+      }
+    });
+    this.defaultBuildings(control, reset);
+  }
+
+  resetBuildingCoverageDetails(control: AbstractControl) {
+    control.get('buildingCoverageSelected').setValue(false);
+    this.defaultBuildings(control, false);
+  }
+
+  doesBuildingCovExists(controls: FormArray, index: number) {
+    const control = controls[index].get('buildingCoverageRequired');
+    if (control) {
+      return control.value;
+    }
+  }
+
+  getBuildingDetails(index, buildingObject: Building): Building {
+    const building = this.buildings.controls[index];
+    let propertyType = this.primaryClassType;
+    if (building) {
+      if (building.get('isSaved').value) {
+        if (this.currentLocation.buildings[index].classifications.length === 1) {
+          propertyType  = this.currentLocation.buildings[index].classifications[0].classPropertyType;
+        } else {
+          propertyType = Constants.propertyType;
+        }
+      } else {
+        propertyType = this.primaryClassType;
+      }
+      const automaticSprinklerSystem = building.get('automaticControlSystem').value;
+      const sqFootageLeasedToOthrTenInd = building.get('sqFootageLeasedToOthrTenInd').value;
+      buildingObject.publicID = building.get('isSaved').value ? this.currentLocation.buildings[index].publicID : '';
+      buildingObject.constructionType = building.get('constructionType').value;
+      buildingObject.automaticSprinklerSystem = automaticSprinklerSystem === 'true';
+      buildingObject.sqFootageLeasedToOthrTenInd = (sqFootageLeasedToOthrTenInd === 'true');
+      buildingObject.yearBuilt = building.get('yearBuilt').value;
+      buildingObject.roofArea = building.get('roofArea').value;
+      buildingObject.roofSlope = building.get('roofSlope').value;
+      buildingObject.roofShape = building.get('roofShape').value;
+      buildingObject.roofType = building.get('roofType').value;
+      buildingObject.propertyType = propertyType;
+      buildingObject.yearOfLastRoofReplacement = building.get('RoofReplacementYear').value;
+      buildingObject.yearHeatingUpdated = building.get('YearHeatingUpdate').value;
+      buildingObject.yearWiringUpdated = building.get('YearWiringUpdated').value;
+      buildingObject.yearPlumbingUpdated = building.get('YearPlumbingUpdated').value;
+      buildingObject.numberOfStories = building.get('numberOfStories').value;
+      buildingObject.totalAreaExcludingBasement = building.get('totalBuildingArea').value;
+      buildingObject.exposure = building.get('exposure').value;
+
+      if (!building.get('buildingCoverageSelected').value) {
+        _.forEach(this.dependentBuildingList, (item) => {
+          delete buildingObject[item];
+        });
+        buildingObject.percentageOwnerOccupied = 'NotApplicable';
+      } else {
+        buildingObject.percentageOwnerOccupied = building.get('PercentageOwnerOccupied').value;
+      }
+    }
+    return buildingObject;
+  }
+
+  disableAddClassification(event, buildingIndex) {
+    this.disableAddClassificationButton = !event;
+    const classificationList = this.buildings.controls[buildingIndex].get('classificationsPageForm')['controls'];
+    // const flag = (classificationList.length === this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes.length);
+    let flag = (classificationList.length === this.bopLobDataService.lobData.bP7BusinessOwners.classificationCodes.length);
+    __.forEach(classificationList, (item: AbstractControl) => {
+      if ((item && item.dirty) || !item.get('isClassSaved').value) {
+        flag = true;
+        return;
+      }
+    });
+    this.buildings.controls[buildingIndex].get('addClassificationCheck').setValue(flag);
+  }
+
+  getFieldControl(field: string, buildingIndex?: number) {
+    return this.buildings.controls[buildingIndex].get(field);
+  }
+
+  displayFieldCSS(field: string, buildingIndex?: number) {
+    const control = this.buildings.controls[buildingIndex].get(field) ;
+    return {
+      'has-error': (!control.valid && control.touched && control.value.length)
+    };
+  }
+
+  checkAnswersList(buildingIndex) {
+    if (this.currentLocation.buildings[buildingIndex] && this.currentLocation.buildings[buildingIndex].classifications) {
+      if (this.currentLocation.buildings[buildingIndex].classifications.length) {
+        const answerList = this.currentLocation.buildings[buildingIndex].buildingUWQuestions[0].answers;
+        return this.uwQuestionsUtil.checkAnswersList(answerList);
+      }
+    }
+    return false;
+  }
+
+  updateUWQuestion(event, buildingIndex) {
+    const answerList = this.currentLocation.buildings[buildingIndex].buildingUWQuestions[0].answers;
+    _.each(answerList, (value, key) => {
+      if (key === event.code) {
+        answerList[key] = event.value;
+        return;
+      }
+    });
+    this.currentLocation.buildings[buildingIndex].buildingUWQuestions[0].answers = answerList;
+  }
+}

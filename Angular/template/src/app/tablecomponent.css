@@ -1,0 +1,34 @@
+.card {
+      height: 70px;
+      width: 100px;
+}
+.major {
+      font-weight: bold;
+}
+  
+.alnright { text-align: center; }
+
+#customers {
+    font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#customers td, #customers th {
+    border: 1px solid #ddd;
+    padding: 8px;
+    font-size: 70%;
+}
+
+#customers tr:nth-child(even){background-color: #f2f2f2;}
+
+#customers tr:hover {background-color: #ddd;}
+
+#customers th {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: center;
+    background-color: #369;
+    color: white;
+    font-size: 75%;
+}

@@ -1,0 +1,37 @@
+import { Injectable } from '@angular/core';
+import { Router, CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
+import { CommonDataService } from '../../common/services/common.data.service';
+import { CommonService } from '../../common/services/common.service';
+import { ErrorHandlingDataService } from './error-handling.service';
+@Injectable()
+export class RouterGuardService implements CanActivate {
+
+  constructor(
+    private router: Router,
+    private commonDataService: CommonDataService,
+    private commonService: CommonService,
+    private errorService: ErrorHandlingDataService
+  ) { }
+
+  navData = this.commonDataService.navData;
+
+  canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot) {
+    if (!this.errorService.hasWarnings() || !this.commonDataService.nextClicked) {
+      this.commonService.enableDisableLeftNavs(state.url);
+    }
+    if (state.url === '/' || state.url === '/policyHome' || state.url === '/businessClass'
+      || state.url === '/products' || state.url === '/decline' || state.url === '/bop/submission/policyIssuance') {
+      this.commonDataService.showLeftNav = false;
+    } else {
+      this.commonDataService.showLeftNav = true;
+    }
+    window.scrollTo(0, 0);
+
+    if (this.commonDataService.nextClicked) {
+      return this.errorService.hasWarnings() ? false : true;
+    } else {
+      return true;
+    }
+  }
+
+}

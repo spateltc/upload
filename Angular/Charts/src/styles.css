@@ -1,0 +1,4 @@
+/* You can add global styles to this file, and also import other style files */
+  html, body { height: 100%; padding: 0; margin: 0; }
+div.half { width: 49%; height: 49%; float: left;  background: #DDD; border:1px solid black; }
+div.full { width: 98%; height: 49%; float: left;  background: #DDD; border:1px solid black; }

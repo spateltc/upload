@@ -1,0 +1,223 @@
+Introduction to stream and observable.
+
+
+stream ------ Eg. Typing text in a text box 
+
+
+var key$  = observable.fromevent(document,'keyup')
+			.do((keyup:keyboardEvent)=>console.log(keyup.key));        --Declaration ( what we want to do )
+			
+			
+			
+			usually above code is defined inside a method initobservable 
+			
+		variable standard defintion for observable variables	key$
+			
+			
+do is always used for the debugging purpose 
+
+
+we need to subscribe to the observable unless it wont work  in the above eg : it wont print in the console unless u subscribe
+
+
+keys$.subscribe();    activation 
+
+An Observable is a collection that arrives over time. Observables can be used to model events, asynchronous requests, and animations.
+
+
+observable is a thing which binds the input stream to the consumer 
+
+
+
+how does angular http use observable 
+
+import {observable} from "rxjs/Observable";
+declare function fetch(url:string);
+
+export function initobservable()  {
+
+	const lessonpromise = fetch('/lessons').then(res => res.json());
+	
+	const lesson$ = observable.frompromise(lessonpromise)
+					.do(lessons => console.log(lessons));
+					
+					lesson$.subscribe();
+					
+					lesson$.subscribe(
+					lessons => console.log("new lessons:",lessons),
+					error => console.error("error retreiving lessons", error ),
+					() => console.log("completed sucess fully ")
+					
+					);
+
+}
+
+
+the rxjs map operator how to create an observable  
+
+
+how observables can be built from other observables 
+
+observables: how values of a stream should be handled 
+
+
+
+
+import {observable} from "rxjs/Observable";
+declare function fetch(url:string);
+
+export function initobservable()  {
+
+	const lessonpromise = fetch('/lessons').then(res => res.json());
+	
+	const lesson$ = observable.frompromise(lessonpromise)
+					.do(lessons => console.log(lessons));
+					
+					const firstlesson$ = lessons$.map(lessons => lessons[0]);
+					
+					
+					
+					lesson$.subscribe(
+					lessons => console.log("new lessons:",lessons),
+					error => console.error("error retreiving lessons", error ),
+					() => console.log("completed sucess fully ")
+					
+					);
+					
+					firstlesson$..subscribe(
+					lessons => console.log("First lessons:",lessons),
+					)
+					
+
+}
+
+
+
+
+
+
+
+observable Composition
+---------------------------------------------------------------------------------------
+
+
+combine multiple observable using rxjs combinelatest 
+
+
+
+mouse click stream of data ---> we can filter the stream of data 
+1 obervable 
+1 subscribe
+
+
+mouse move   stream of data ---> we can filter the stream of data 
+
+1 obervable 
+1 subscribe
+
+using combinelatest have 1 subscribe for both the stream of data 
+
+
+here instead of using 2 subscribe we use one 
+
+
+
+---------------------------------------------------------------------------------------
+
+
+how does angular http use observable 
+
+
+---------------------------------------------------------------------------------------
+
+http modules always returns observables 
+
+
+
+observables response will be containing the header status 200 or whatever 
+
+
+if u want only the data u need to parse it using map operator res.json()
+
+
+
+---------------------------------------------------------------------------------------
+
+
+how to build an angular service layer with rxjs observables and http 
+
+
+---------------------------------------------------------------------------------------
+
+
+
+keep service layer seperate   
+
+
+instance it in component 
+
+ 
+
+return the type of array  it returns 
+
+
+---------------------------------------------------------------------------------------
+
+do multiple http requests using rxjs  concat operator
+
+delete 1 
+
+delete 2
+
+reload 
+
+do all this operation in a single concat operator
+
+and u can have single subscribe for  that observable  
+
+
+----------------------------------------------------------------------------------------
+
+How to setup an HTTP request sequence using the RxJs switchMap Operator
+
+
+switchMap Operator is always used when we want to make a new network call based on the result of previous call 
+
+
+----------------------------------------------------------------------------------------
+
+ Angular HTTP Retry - Retry HTTP requests in Error using the retry and retryWhen RxJs Operators
+ 
+ if a network call fails... using  Retry operator ---- it makes the network call till it becomes sucess
+ 
+ 
+ retryWhen similar to it ..u can specify the condition .... upon which the call has to be done ..
+ 
+ even we can specify the delay ..with it 
+ 
+ cache    ------ ?
+
+ 
+------------------------------------------------------------------------------------------
+
+ How to Cancel an HTTP Request using an RxJs Subscription
+ 
+ 
+ set time out 
+ 
+ 
+ we can unsuscribe from the observable which got subrcibed using subscrptions variable.unsubscribe(0)
+ 
+ 
+ ------------------------------------------------------------------------------------------
+
+filter
+
+filter() {
+
+    let storeId = 1;
+    this.bookFilteredList = this.bookList
+                                .filter((book: Book) => book.storeId === storeId);
+    this.bookList = this.bookFilteredList; 
+}
+
